@@ -7,11 +7,22 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+// Unexpected errors are still swallowed (the harness must never break),
+// but they leave one diagnostic line behind instead of vanishing.
+function logErr(e) {
+  try {
+    const dir = path.join(__dirname, '..', 'data');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(path.join(dir, 'hook-errors.log'),
+      `${new Date().toISOString()} posttool-skill: ${(e && e.message) || e}\n`, 'utf8');
+  } catch { /* diagnostics must never break the harness either */ }
+}
+
 try {
   const raw = fs.readFileSync(0, 'utf8');
   if (!raw || !raw.trim()) process.exit(0);
   let data;
-  try { data = JSON.parse(raw); } catch { process.exit(0); }
+  try { data = JSON.parse(raw); } catch (e) { logErr(e); process.exit(0); }
 
   if (!data || data.tool_name !== 'Skill') process.exit(0);
   const skill = String((data.tool_input && data.tool_input.skill) || '');
@@ -54,5 +65,5 @@ try {
     transcript: String(data.transcript_path || '')
   };
   fs.appendFileSync(path.join(dataDir, 'pending.jsonl'), JSON.stringify(rec) + '\n', 'utf8');
-} catch { /* never break the harness */ }
+} catch (e) { logErr(e); /* never break the harness */ }
 process.exit(0);

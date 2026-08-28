@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-44%2F44-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-46%2F46-brightgreen)](scripts/selftest.js)
 
 **装一次,你的全部 skill 进入进化观察。** lamarck 被动观察每个已装 skill
 的每次真实调用(几百个也一样),逐 skill 积累证据,在证据门约束下推动进化
@@ -61,7 +61,7 @@ npx lamarck-skill
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **44/44**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **46/46**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
    接受的编辑都有前后窗口,以**用户纠正率**度量——ground truth 来自用户
@@ -94,6 +94,30 @@ npx lamarck-skill
 手动安装步骤见英文版 [README](README.md#install) 折叠段。停用开关:在 skill
 目录创建名为 `off` 的文件(静默两个 hook;手动 `/lamarck` 属显式意图,不受
 影响)。
+
+## 装完第一周会发生什么
+
+一开始什么动静都没有——这是设计。hook 静默记录每次 skill 调用;一个会话攒够
+5 条(默认阈值),回合末评估把 verdict 写进账本。几天过去,各 skill 的证据慢慢
+攒;某个 skill 第一次出现两次同类 gap 时,你会收到三选一提示:采纳编辑、留作
+提案、或否决。干净的 skill 会收敛降为抽查。冷启动是真实存在的:第一周没有任何
+提案,通常说明你的 skill 都挺健康,不是 lamarck 没干活——看一眼
+`data/ledger.jsonl` 就知道它在记。
+
+## 常见问题
+
+- **怎么确认 hook 活着?** 随便用一个 skill,看 `data/pending.jsonl` 是否多了
+  一行。意外错误会落在 `data/hook-errors.log`(那里安静 = 健康)。
+- **评估时机我能控制吗?** 能:`/lamarck mode every` / `manual` /
+  `threshold N` 三档随切,`/lamarck` 随时手动跑。
+- **哪些 skill 会被改?** 只有白名单里的(`/lamarck evolve add <skill>`)。
+  默认全是 observe:只攒证据,不动文件。插件永远不会被直接编辑。
+- **什么时候需要手动跑 `/lamarck`?** 清算其他会话攒下的积压、`audit <skill>`
+  做全量证据审查、`stats` 看记分板、`report` 看进化叙事。
+- **怎么暂停?** 在 skill 目录建一个名为 `off` 的文件(hook 静默;手动调用
+  不受影响)。卸载:`npx lamarck-skill uninstall`。
+- **为什么一直没有优化建议?** 证据门:每个 skill 要攒出 ≥2 次独立同类 gap
+  才会出提案。健康的 skill 永远不会触发——这是特性。
 
 ## 环境要求
 

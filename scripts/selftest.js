@@ -72,6 +72,17 @@ try {
   postCall('{"session_id":"s1","tool_name":"Skill","tool_input":{"skill":"nolog","args":""}}');
   check('post: off switch disables logging', !fs.readFileSync(pending, 'utf8').includes('nolog'));
   fs.unlinkSync(offFile);
+  // Diagnosability: force a write failure (pending.jsonl as a directory) and
+  // expect a hook-errors.log line while the hook still exits 0.
+  const errLog = path.join(sb, 'data', 'hook-errors.log');
+  const savedPending = fs.readFileSync(pending, 'utf8');
+  fs.unlinkSync(pending);
+  fs.mkdirSync(pending);
+  rc = postCall('{"session_id":"s1","tool_name":"Skill","tool_input":{"skill":"errcase","args":""}}');
+  check('post: unexpected error exits 0 AND leaves a diagnostic line',
+    rc === 0 && fs.existsSync(errLog) && fs.readFileSync(errLog, 'utf8').includes('posttool-skill'));
+  fs.rmdirSync(pending);
+  fs.writeFileSync(pending, savedPending, 'utf8');
 
   // ---------- stop: threshold mode ----------
   fs.writeFileSync(pending, '', 'utf8');
@@ -169,6 +180,9 @@ try {
     catch { localOk = false; }
   }
   check('static: local config.json absent or legal', localOk);
+  check('static: both hooks reference the diagnostic hook-errors.log',
+    fs.readFileSync(path.join(repo, 'scripts', 'posttool-skill.js'), 'utf8').includes('hook-errors.log') &&
+    fs.readFileSync(path.join(repo, 'scripts', 'stop-evaluate.js'), 'utf8').includes('hook-errors.log'));
 } finally {
   fs.rmSync(base, { recursive: true, force: true });
 }

@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.3"
+  version: "5.4"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, Node.js 18+, and git; cross-platform (Windows / macOS / Linux)
 ---
 
@@ -192,6 +192,7 @@ better / tie → 保留,解除冻结。
 git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,仅本地)·
 `data/maturity.json`(逐 skill 成熟度状态,评估时维护)·
 `data/rejected.md`(拒绝缓冲)· `suggestions/<skill>.md`(待决提案)·
+`data/hook-errors.log`(hook 意外错误诊断,一行一条;安静=健康)·
 `CHANGELOG.md`(编辑留痕)。`off` 文件:停用自动 hook(手动调用不受影响)。
 
 存储设计决定:账本用 append-only JSONL 而非 sqlite——当前量级(日十条级)模型直读

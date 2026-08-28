@@ -1,6 +1,6 @@
 {
   "name": "lamarck-skill",
-  "version": "5.3.1",
+  "version": "5.4.0",
   "description": "用进废退的全量 skill 进化 | Install once - every Claude Code skill you have goes under evolution watch. Governed, evidence-gated evolution from real usage, population-wide; evolves itself by the same rules.",
   "bin": {
     "lamarck-skill": "bin/install.js"

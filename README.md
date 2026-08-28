@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-44%2F44-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-46%2F46-brightgreen)](scripts/selftest.js)
 
 **Install once — every skill you have is under evolution watch.** lamarck
 passively observes every real invocation of every installed skill (hundreds,
@@ -71,7 +71,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **44/44**: hook
+   sandbox, zero contact with live telemetry. Currently **46/46**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries. CI-able (exit code gated).
@@ -138,6 +138,37 @@ files and telemetry): `npx lamarck-skill uninstall`
    both hooks; manual `/lamarck` invocation still works (explicit intent).
 
 </details>
+
+## Your first week
+
+Nothing visible happens at first — that is the design. Hooks log every
+skill invocation silently. After 5 logged calls in a session (the default
+threshold), the end-of-turn evaluation writes verdicts to the ledger. Days
+pass; evidence accumulates per skill. The first time some skill shows the
+same gap twice, you get a three-choice prompt: apply the proposed edit,
+park it as a suggestion, or reject it. Clean skills converge and drop to
+spot-checks. Cold start is real: no proposals in week one usually means
+your skills are healthy, not that lamarck is idle — check
+`data/ledger.jsonl` to see it working.
+
+## FAQ
+
+- **How do I know the hooks are alive?** Use any skill, then check
+  `data/pending.jsonl` grew. Unexpected hook errors land in
+  `data/hook-errors.log` (silence there = healthy).
+- **Can I control when evaluation runs?** Yes: `/lamarck mode every`,
+  `manual`, or `threshold N` — and `/lamarck` runs it on demand anytime.
+- **Which skills can be edited?** Only whitelisted ones
+  (`/lamarck evolve add <skill>`). Default is observe: evidence
+  accumulates, nothing is touched. Plugins are never edited.
+- **When should I run `/lamarck` manually?** To process backlog from other
+  sessions, `audit <skill>` for a full evidence review, `stats` for the
+  scoreboard, or `report` for the evolution narrative.
+- **How do I pause it?** Create a file named `off` in the skill directory
+  (hooks go silent; manual invocation still works). Uninstall:
+  `npx lamarck-skill uninstall`.
+- **Why no suggestions yet?** Evidence gates: >=2 independent same-type
+  gaps per skill before any proposal. Healthy skills never trigger one.
 
 ## Requirements
 
