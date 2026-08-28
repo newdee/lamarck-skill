@@ -43,6 +43,10 @@ try {
         skill   = $skill
         args    = $skillArgs
         ver     = $ver
+        # Pointer to Claude Code's own session transcript - the full execution
+        # log already exists there; we store the pointer, never a copy.
+        # Decays with the transcript cleanup period; consumers must fall back.
+        transcript = [string]$data.transcript_path
     } | ConvertTo-Json -Compress
 
     [System.IO.File]::AppendAllText(

@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - traits acquired through real use are i
 license: MIT
 metadata:
   author: kian
-  version: "4.4"
+  version: "4.6"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, pwsh, and git
 ---
 
@@ -133,8 +133,12 @@ better / tie → 保留,解除冻结。
 
 ## 手动 `/lamarck`
 
-- 无参数 — 处理全部 pending(本会话条目四维评估;历史会话条目按 skill 聚合归档,
-  `{"outcome":"archived","note":"N 次调用,args 样本"}`)+ 沉淀 learnings/rubric + 过优化门。
+- 无参数 — 处理全部 pending + 沉淀 learnings/rubric + 过优化门。本会话条目做
+  四维评估;**历史会话条目先试 transcript 指针**:记录的 `transcript` 路径若仍
+  存在(30 天清理期内),Read 其中该次调用附近的片段(按 ts 与 skill 名定位,
+  只取所需切片,不整读),据真实执行痕迹做四维评估,并抽客观 friction(工具调用
+  数、报错/重试次数、耗时);指针失效或定位不到,才退回按 skill 聚合归档
+  `{"outcome":"archived","note":"N 次调用,args 样本"}`。
 - `audit <skill>` — 汇总该 skill 全部证据,产出编辑提案(仍走优化门+用户在环)。
 - `stats` — 只看账:各 skill 调用频次、corrected 率、gap 排行。
 - `mode <every|manual|threshold> [N]` — 改写 `config.json` 切换触发模式(threshold 可带
@@ -146,7 +150,9 @@ better / tie → 保留,解除冻结。
 
 ## 数据文件
 
-`data/pending.jsonl`(待处理,含 `ver` 基因版本戳)· `data/ledger.jsonl`(账本,格式
+`data/pending.jsonl`(待处理,含 `ver` 基因版本戳与 `transcript` 执行日志指针——
+执行日志不自建,指向 Claude Code 自己的会话 transcript,按需读切片)·
+`data/ledger.jsonl`(账本,格式
 `{"ts","session","skill","ver","trigger_fit","gaps","outcome","friction","note"}`,
 评估时把 pending 条目的 `ver` 原样带入)·
 `data/learnings/<skill>.md`(逐 skill 经验)· `data/rubrics/<skill>.md`(逐 skill 尺子,

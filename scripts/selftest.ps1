@@ -35,13 +35,15 @@ function LastRec { return ((Get-Content $pending | Where-Object { $_ } | Select-
 
 try {
     # ---------- posttool ----------
-    $rc = PostCall '{"session_id":"s1","tool_name":"Skill","tool_input":{"skill":"fakeskill","args":"hello"}}'
+    $rc = PostCall '{"session_id":"s1","tool_name":"Skill","tool_input":{"skill":"fakeskill","args":"hello"},"transcript_path":"C:/tmp/session.jsonl"}'
     Check 'post: valid call logged, exit 0' (($rc -eq 0) -and (PendingCount) -eq 1)
     $rec = LastRec
     Check 'post: fields ts/session/skill/args/ver present' (($rec.session -eq 's1') -and ($rec.skill -eq 'fakeskill') -and ($rec.args -eq 'hello') -and ($null -ne $rec.ver))
+    Check 'post: transcript pointer recorded when provided' ($rec.transcript -eq 'C:/tmp/session.jsonl')
     Check 'post: ver is 8-hex for resolvable skill' ($rec.ver -cmatch '^[0-9a-f]{8}$')
     PostCall '{"session_id":"s1","tool_name":"Skill","tool_input":{"skill":"fakeskill","args":"again"}}' | Out-Null
     Check 'post: ver deterministic across calls' ((LastRec).ver -eq $rec.ver)
+    Check 'post: transcript empty when absent' ((LastRec).transcript -eq '')
     PostCall '{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"ls"}}' | Out-Null
     Check 'post: non-Skill tool ignored' ((PendingCount) -eq 2)
     PostCall '{"session_id":"s1","tool_name":"Skill","tool_input":{"skill":"lamarck","args":""}}' | Out-Null
