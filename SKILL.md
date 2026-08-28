@@ -107,8 +107,10 @@ better / tie → 保留,解除冻结。
 
 **结论必须落账(可证明性)**:replay、盲评、版本分窗三种验证各记一行 verify 记录
 进 ledger:`{"ts","skill","type":"verify","stage":"replay|judge|window","old_ver",
-"new_ver","result":"better|worse|tie","decision":"keep|revert","detail":""}`。
-`report` 的进化战绩全部由这些记录汇总——没有落账的效果等于没有效果。
+"new_ver","result":"better|worse|tie","decision":"keep|revert","judges":N,"detail":""}`。
+`judges` 记本次动用的评委 agent 数(成本记账:report 可算"每有效编辑评委调用数",
+与 darwin 固定 3 评委×3 轮对比)。`report` 的进化战绩全部由这些记录汇总——
+没有落账的效果等于没有效果。
 
 ## 自我优化(仅在升级或手动运行时)
 

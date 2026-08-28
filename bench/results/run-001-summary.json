@@ -1,0 +1,18 @@
+{
+  "run": "001",
+  "date": "2026-08-28",
+  "judge_model": "claude-fable-5",
+  "protocol_commit": "5411f9b",
+  "judges_per_variant": 1,
+  "cases_per_variant": 3,
+  "metrics": {
+    "recall_on_degraded": "4/5 (0.80)",
+    "false_positive_rate_on_improved": "0/2 (0.00)",
+    "case_level_votes_on_degraded": {"baseline_preferred": 11, "tie": 3, "variant_preferred": 1},
+    "case_level_votes_on_improved": {"variant_preferred": 2, "tie": 4, "baseline_preferred": 0}
+  },
+  "caught": ["D1", "D2", "D3", "D5"],
+  "missed": ["D4"],
+  "missed_analysis": "D4 (header validation deleted) was flagged on the one case that exercises header validation (C2: judge chose baseline) but tied on C1/C3, which never reach that code path, so the preregistered single-judge majority records it as not flagged. Detection is bounded by case coverage - the argument for harvesting replay cases from real usage instead of hand-writing them. In production this majority-tie outcome triggers the 3-judge escalation, and the version-window health metric provides a further trailing backstop.",
+  "notable_dissent": "D2/C2: the judge preferred the softened variant because the baseline's rigid STOP on an obviously-mappable header rename ('Order-ID' vs 'order_id') costs an avoidable round-trip - a legitimate improvement hint for the baseline skill, recorded here as future evidence."
+}

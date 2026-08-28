@@ -48,6 +48,33 @@ Answer with strict JSON only:
 No other text.
 ```
 
+## Results
+
+**run-001** (2026-08-28, judge: claude-fable-5, protocol preregistered at
+commit `5411f9b` before execution; raw verdicts verbatim in
+`results/run-001.jsonl`):
+
+- **recall on degraded: 4/5** — D1 (failure handling removed) 3-0,
+  D2 (softened language) 2-1, D3 (parameters vaguened) 3-0,
+  D5 (injected contradiction) 2-0-1 all flagged; **D4 missed** (header
+  validation deleted: flagged on the only case that exercises headers,
+  tied on the two that don't — the preregistered single-judge majority
+  therefore records a miss).
+- **false positives on improved: 0/2** — I1 and I2 were not rejected;
+  each even drew one vote as the better version.
+- Case-level votes on degraded variants: 11 baseline / 3 tie / 1 variant.
+
+Two honest lessons the numbers teach:
+1. **Detection is bounded by case coverage** (D4): a degradation is only
+   catchable on inputs that exercise the deleted behavior — the argument
+   for harvesting regression cases from real usage rather than writing
+   them by hand. In production, D4's majority-tie triggers the 3-judge
+   escalation, and version-window health provides the trailing backstop.
+2. **The judge is not a rubber stamp** (D2/C2 dissent): it sided with the
+   softened variant where the baseline's rigid STOP costs an avoidable
+   round-trip on an obviously-mappable header rename — a legitimate
+   improvement hint for the baseline, kept on file as evidence.
+
 ## Honesty notes
 
 - Single target, 7 variants, 3 cases: a pilot, not a population study.

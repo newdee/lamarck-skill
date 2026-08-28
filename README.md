@@ -58,7 +58,13 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
    from user behavior, not model self-scoring. Replay validation adds a
    controlled comparison: identical real inputs, old vs new genome. All
    verify verdicts are ledgered; `/lamarck report` aggregates them.
-3. **Case studies** — to be published from real usage before any promotion,
+3. **mutation-bench** (`bench/`, protocol preregistered before execution):
+   controlled degradations with public ground truth, blind A/B judging.
+   run-001: **4/5 known-degraded variants flagged, 0/2 known-improved
+   variants falsely rejected** (single judge, majority-of-3-cases; the miss
+   is analyzed, not hidden — see `bench/README.md`). Raw verdicts committed
+   verbatim.
+4. **Case studies** — to be published from real usage before any promotion,
    with observational caveats (task-mix drift) stated, not hidden.
 
 ## Install
