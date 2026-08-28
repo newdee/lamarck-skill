@@ -1,10 +1,10 @@
 ---
 name: lamarck
-description: Lamarckian skill evolution - traits acquired through real use are inherited back into the skill file. A PostToolUse hook logs every skill invocation (stamped with the target skill's genome hash for per-version regression detection); a Stop hook runs a light evaluation loop whose protocol is embedded in the hook reason, so this SKILL.md is not reloaded every turn. Per-skill dynamic rubrics (git-versioned) define what "good" means for each skill; an evolution whitelist in config.json controls which skills may be edited (evolve/suggest/observe, default observe). Read this file only when escalating - when a skill accumulates enough same-type evidence to propose an edit, or on manual invocation. Use when the stop hook says to escalate, or when asked to review skill performance, optimize or improve a skill, audit the skill ledger, distill skill learnings, manage the evolution whitelist, or switch the lamarck trigger mode.
+description: Lamarckian skill evolution - continuously monitors every real skill invocation, drives governed evolution of the observed skills, and evolves itself by the same rules while running. A PostToolUse hook logs each invocation (stamped with the target skill's genome hash for per-version regression detection); a Stop hook runs a light evaluation loop whose protocol is embedded in the hook reason, so this SKILL.md is not reloaded every turn. Per-skill dynamic rubrics (git-versioned) define what "good" means for each skill; an evolution whitelist in config.json controls which skills may be edited (evolve/suggest/observe, default observe). Read this file only when escalating - when a skill accumulates enough same-type evidence to propose an edit, or on manual invocation. Use when the stop hook says to escalate, or when asked to review skill performance, optimize or improve a skill, audit the skill ledger, distill skill learnings, manage the evolution whitelist, or switch the lamarck trigger mode.
 license: MIT
 metadata:
   author: kian
-  version: "5.0"
+  version: "5.1"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, Node.js 18+, and git; cross-platform (Windows / macOS / Linux)
 ---
 

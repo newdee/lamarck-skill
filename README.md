@@ -1,9 +1,16 @@
 # lamarck
 
-**Lamarckian skill evolution for Claude Code** — skills evolve from real usage,
-not synthetic tests. Traits acquired through use are inherited back into the
-skill file; parts that go unused atrophy. Counterpart to
+**Governed evolution for Claude Code skills.** lamarck continuously watches
+every real skill invocation, drives the observed skills' evolution under
+evidence gates — and evolves itself by the same rules while it runs. Traits
+acquired through use are inherited back into the skill file; parts that go
+unused atrophy. Every irreversible step is user-approved, ledgered, and
+reversible: the governance is the point, not an afterthought. Counterpart to
 [darwin-skill](https://github.com/alchaincyf/darwin-skill).
+
+```
+npx github:newdee/lamarck-skill
+```
 
 ## The lane
 
@@ -69,10 +76,29 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
    variants falsely rejected** (single judge, majority-of-3-cases; the miss
    is analyzed, not hidden — see `bench/README.md`). Raw verdicts committed
    verbatim.
-4. **Case studies** — to be published from real usage before any promotion,
+4. **Self-application** — lamarck evolves itself under its own protocol.
+   [CHANGELOG.md](CHANGELOG.md) is the auditable history: every version
+   carries its triggering evidence, bounded diff and verification result,
+   including four defects caught by the system's own review perspectives.
+   No self-graded score — a self-evolution paper trail instead.
+5. **Case studies** — to be published from real usage before any promotion,
    with observational caveats (task-mix drift) stated, not hidden.
 
 ## Install
+
+One command — copies the skill, initializes local config, wires both hooks
+into `~/.claude/settings.json` (backup first, add-only, idempotent), then
+runs the selftest so the install proves itself:
+
+```
+npx github:newdee/lamarck-skill
+```
+
+Restart Claude Code (or open `/hooks` once) afterwards so the hooks load.
+Uninstall (unwires hooks, keeps files and telemetry):
+`npx github:newdee/lamarck-skill uninstall`
+
+<details><summary>Manual install</summary>
 
 1. Clone into your skills directory:
    ```
@@ -99,10 +125,21 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
 5. Kill switch: create a file named `off` in the skill directory — silences
    both hooks; manual `/lamarck` invocation still works (explicit intent).
 
+</details>
+
 ## Requirements
 
 Claude Code on any platform (Windows / macOS / Linux) — Node.js 18+ and git.
 Hooks wired in `~/.claude/settings.json` (PostToolUse on `Skill`, Stop).
+
+## Roadmap
+
+The genome abstraction is not skill-specific: any text artifact that steers
+an agent and is exercised repeatedly in production can evolve under the same
+telemetry → ledger → rubric → gated-edit architecture. Planned targets, in
+order: subagent definitions (`.claude/agents/`), CLAUDE.md / AGENTS.md memory
+files, slash commands, MCP tool configurations. Same Iron Rules everywhere:
+evidence gates, user-in-the-loop, rollback, whitelists.
 
 ## Status
 

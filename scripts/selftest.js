@@ -124,14 +124,21 @@ try {
   check('static: frontmatter name matches directory', name === path.basename(repo));
   check('static: description within 1024 chars', desc.length > 0 && desc.length <= 1024);
   check('static: SKILL.md under 500 lines', md.split('\n').length < 500);
-  check('static: telemetry ignored, rubrics+README tracked',
-    gitIgnored('data/ledger.jsonl') && gitIgnored('data/pending.jsonl') && gitIgnored('data/replays/x.jsonl') &&
-    !gitIgnored('data/rubrics/x.md') && !gitIgnored('README.md'));
+  // Git-boundary checks only make sense inside the development repo; an
+  // npx-installed copy has no .git and skips them gracefully.
+  const inGitRepo = spawnSync('git', ['-C', repo, 'rev-parse', '--git-dir']).status === 0;
+  if (inGitRepo) {
+    check('static: telemetry ignored, rubrics+README tracked',
+      gitIgnored('data/ledger.jsonl') && gitIgnored('data/pending.jsonl') && gitIgnored('data/replays/x.jsonl') &&
+      !gitIgnored('data/rubrics/x.md') && !gitIgnored('README.md'));
+    check('static: local config.json untracked (personal state)', gitIgnored('config.json'));
+  } else {
+    console.log('SKIP  static git-boundary checks (no .git here - installed copy)');
+  }
   const cj = JSON.parse(fs.readFileSync(path.join(repo, 'config.example.json'), 'utf8'));
   check('static: config.example.json valid, mode legal, evolution block sane',
     ['every', 'manual', 'threshold'].includes(cj.mode) && ['observe', 'suggest', 'evolve'].includes(cj.evolution.default));
   check('static: config.example.json stability block sane', cj.stability.streak >= 1 && cj.stability.sample >= 1);
-  check('static: local config.json untracked (personal state)', gitIgnored('config.json'));
   let localOk = true;
   if (fs.existsSync(path.join(repo, 'config.json'))) {
     try { localOk = ['every', 'manual', 'threshold'].includes(JSON.parse(fs.readFileSync(path.join(repo, 'config.json'), 'utf8')).mode); }
