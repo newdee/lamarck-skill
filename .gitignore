@@ -9,3 +9,6 @@ config.json
 # Runtime kill switch and single-generation backups
 off
 *.bak
+# Publish/build artifacts
+*.tgz
+node_modules/

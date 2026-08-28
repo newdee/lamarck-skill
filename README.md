@@ -9,7 +9,7 @@ reversible: the governance is the point, not an afterthought. Counterpart to
 [darwin-skill](https://github.com/alchaincyf/darwin-skill).
 
 ```
-npx github:newdee/lamarck-skill
+npx lamarck-skill
 ```
 
 ## The lane
@@ -76,11 +76,12 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
    variants falsely rejected** (single judge, majority-of-3-cases; the miss
    is analyzed, not hidden — see `bench/README.md`). Raw verdicts committed
    verbatim.
-4. **Self-application** — lamarck evolves itself under its own protocol.
-   [CHANGELOG.md](CHANGELOG.md) is the auditable history: every version
-   carries its triggering evidence, bounded diff and verification result,
-   including four defects caught by the system's own review perspectives.
-   No self-graded score — a self-evolution paper trail instead.
+4. **Self-application** — lamarck evolves under its own rules: every change
+   to itself is evidence-triggered, bounded, user-approved and verified.
+   [CHANGELOG.md](CHANGELOG.md) is the auditable history — each version
+   carries its triggering evidence, diff summary and verification result,
+   including four defects caught and fixed under the review discipline the
+   log records. No self-graded score — a paper trail instead.
 5. **Case studies** — to be published from real usage before any promotion,
    with observational caveats (task-mix drift) stated, not hidden.
 
@@ -91,12 +92,12 @@ into `~/.claude/settings.json` (backup first, add-only, idempotent), then
 runs the selftest so the install proves itself:
 
 ```
-npx github:newdee/lamarck-skill
+npx lamarck-skill
 ```
 
-Restart Claude Code (or open `/hooks` once) afterwards so the hooks load.
-Uninstall (unwires hooks, keeps files and telemetry):
-`npx github:newdee/lamarck-skill uninstall`
+(equivalent: `npx github:newdee/lamarck-skill`). Restart Claude Code (or open
+`/hooks` once) afterwards so the hooks load. Uninstall (unwires hooks, keeps
+files and telemetry): `npx lamarck-skill uninstall`
 
 <details><summary>Manual install</summary>
 
