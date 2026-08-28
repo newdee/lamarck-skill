@@ -5,5 +5,9 @@
     "default": "observe",
     "evolve": ["lamarck"],
     "suggest": []
+  },
+  "stability": {
+    "streak": 10,
+    "sample": 5
   }
 }

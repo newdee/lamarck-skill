@@ -37,6 +37,11 @@ to a 3-judge majority only on close calls) and human-in-the-loop checkpoints.
    Any degradation → rollback proposal.
 4. **Whitelist**: `config.json` grades each skill evolve / suggest / observe
    (default observe; plugins capped at suggest). New skills inherit the default.
+5. **Convergence**: not every iteration pays. After a clean streak (default
+   10) a skill goes *stable* — evaluations drop to spot-checks (1 in 5) and
+   one-line `stable-skip` records; any user correction, genome change or
+   novel scenario wakes it back to active. A long clean streak is itself
+   evidence: the report presents it as a production-reliability certificate.
 
 Everything irreversible requires explicit user confirmation. Telemetry never
 leaves the machine (`.gitignore`d); rubrics are versioned with the code.

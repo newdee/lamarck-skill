@@ -78,6 +78,7 @@ try {
     Check 'stop: reason states mode and needed' ($o -match 'mode=threshold, needed=5')
     Check 'stop: reason lists session and skills' (($o -match 'session_id=s2') -and ($o -match 'sk1'))
     Check 'stop: reason embeds protocol (4 dims, escalate, user gate, replay, ver)' (($o -match 'trigger_fit') -and ($o -match 'ESCALATE ONLY IF') -and ($o -match 'AskUserQuestion') -and ($o -match 'replays') -and ($o -match 'carry ver over'))
+    Check 'stop: reason embeds maturity clause (stable-skip, wake, sample)' (($o -match 'maturity\.json') -and ($o -match 'stable-skip') -and ($o -match 'wakes the skill back to active') -and ($o -match 'stability\.sample'))
     $o2 = StopCall '{"session_id":"s2","stop_hook_active":false}'
     Check 'stop: output byte-identical across runs' ($o -eq $o2)
     Check 'stop: other session silent' ([string]::IsNullOrEmpty((StopCall '{"session_id":"other","stop_hook_active":false}')))
@@ -123,6 +124,7 @@ try {
     Check 'static: telemetry ignored, rubrics+README tracked' ($i1 -and $i2 -and $i3 -and $i4 -and $i5)
     $cj = Get-Content (Join-Path $repo 'config.example.json') -Raw | ConvertFrom-Json
     Check 'static: config.example.json valid, mode legal, evolution block sane' (($cj.mode -in @('every', 'manual', 'threshold')) -and ($cj.evolution.default -in @('observe', 'suggest', 'evolve')))
+    Check 'static: config.example.json stability block sane' (($cj.stability.streak -ge 1) -and ($cj.stability.sample -ge 1))
     git -C $repo check-ignore -q config.json; $lc = $LASTEXITCODE -eq 0
     Check 'static: local config.json untracked (personal state)' $lc
     $localOk = $true

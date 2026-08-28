@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - traits acquired through real use are i
 license: MIT
 metadata:
   author: kian
-  version: "4.6"
+  version: "4.7"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, pwsh, and git
 ---
 
@@ -52,6 +52,27 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
 升级或 `audit` 时按 `ver` 分窗计算该 skill 的健康度(corrected+failed 占比、gap 频率):
 编辑后版本窗口(样本 ≥3)比编辑前变差 → 判定负优化,自动产出**回滚提案**
 (仍走用户三选一)。这是成对盲评(单次、即时)之外的第二道统计防线(多次、滞后)。
+
+## 成熟度:收敛的 skill 降为抽查
+
+不是每次评估都有收益——场景不变时 skill 会收敛。每 skill 两态,存
+`data/maturity.json`(`{"<skill>":{"state":"active|stable","clean_streak":N,"ver":"..."}}`,
+评估时顺手维护):
+
+- **active**(默认):每条 pending 全量四维评估。
+- **stable**(进入条件:连续 `stability.streak` 次评估干净——无 gap、无
+  corrected/failed、rubric 无新增;默认 10):每条只做一眼扫描(本回合有无用户
+  纠正或异常),没有就记一行 `{"outcome":"stable-skip","ver":"..."}`(带 ver,
+  版本分窗统计不断粮)并 streak++;**每第 `stability.sample` 条仍做全量评估**
+  (默认 5,抽样防漂移);rubric 冻结,不再新增条目。
+- **唤醒回 active(任一即触发,立即)**:用户纠正或 failed;抽样评估发现 gap;
+  **ver 变化**(被编辑或外部改动——编辑后的验证期必须全量);args 呈现 rubric
+  场景标签覆盖不了的新场景(场景变了,收敛前提失效)。
+- **收敛即证书**:`report` 把 stable 状态与清白连击数当 Tier 2 证据呈现
+  ("该 skill 近 N 次真实调用零纠正")。stable + 长期零引用条目 = 废退修剪的
+  天然候选。
+
+`stability` 配置在 `config.json`(缺失回退 streak=10, sample=5)。
 
 ## 升级后:优化门(SkillOpt 验证门的文本版)
 
@@ -157,6 +178,7 @@ better / tie → 保留,解除冻结。
 评估时把 pending 条目的 `ver` 原样带入)·
 `data/learnings/<skill>.md`(逐 skill 经验)· `data/rubrics/<skill>.md`(逐 skill 尺子,
 git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,仅本地)·
+`data/maturity.json`(逐 skill 成熟度状态,评估时维护)·
 `data/rejected.md`(拒绝缓冲)· `suggestions/<skill>.md`(待决提案)·
 `CHANGELOG.md`(编辑留痕)。`off` 文件:停用自动 hook(手动调用不受影响)。
 
