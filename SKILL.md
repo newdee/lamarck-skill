@@ -4,15 +4,16 @@ description: Lamarckian skill evolution - traits acquired through real use are i
 license: MIT
 metadata:
   author: kian
-  version: "4.1"
+  version: "4.2"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, pwsh, and git
 ---
 
 # lamarck:用进废退的 skill 进化
 
 拉马克式进化:skill 在**真实使用**中获得的经验,写回它的"基因"(SKILL.md);
-衡量它的**尺子(rubric)也随之进化**。(对照 darwin-skill 的达尔文式:合成测试 +
-固定考纲 + 评委选择;本 skill 的信号源是生产使用。)三层机制,重活分级触发:
+衡量它的**尺子(rubric)也随之进化**;长期无用的部分**废退**(修剪)。
+赛道:SkillOpt 是训练场(基准分数驱动),darwin-skill 是考场(合成测试+评委),
+lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,重活分级触发:
 
 - **记账**(自动,每次 Skill 调用,所有模式下都开):PostToolUse hook 写 `data/pending.jsonl`。
 - **轻循环**(回合末,**不加载本文件**):Stop hook 的 reason 内嵌迷你协议——
@@ -56,7 +57,13 @@ compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.
 
 - **证据 ≥2**:ledger/learnings 中该 skill 有 ≥2 次**独立调用**出现同类 gap
   (单次观察永不触发编辑,n=1 是噪声)。
+- **全证据合成**:提案生成时必须综合该 skill 的**全部**在案证据(ledger、learnings、
+  rubric),不只触发门槛的那两条(SkillOpt 的 mini-batch 思路)。
 - **提案具体**:能写成 add / delete / replace 的定点操作,写明预期改善与验证方式。
+- **净增长预算(废退)**:提案给出净行数变化;若使 SKILL.md 超 500 行,或连续两次
+  提案净增 >10%,必须同时附删减案。删除类提案是一等公民:长期(≥90 天)零引用的
+  rubric 条目、被 gap 证据标记为"误导/从未用到"的段落,主动产出修剪提案(同样走
+  用户三选一;修剪内容进 attic / git 历史,不物理消失)。
 - **不在拒绝缓冲**:`data/rejected.md` 否过的同类提案不得重提,除非有新类型证据。
 - **未被冻结**:该 skill 上一次编辑的验证 rollout 尚未完成时,禁止新提案。
 
@@ -76,11 +83,19 @@ compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.
   禁止整文件重写);`CHANGELOG.md` 记一行:日期、目标、改动、依据证据。
 - **插件 / marketplace / synced skill**:永不改原件,只走选项 2。
 
-**验证 rollout(成对盲评)**:被编辑 skill 的下一次被评估调用即验证。派一个
+**编辑后立即 replay 验证**(先于自然验证):从 `data/replays/<skill>.jsonl` 取该
+skill 的回归用例(见下),派新 subagent 分别按旧版与新版执行,按 rubric 成对比较。
+新版更差 → 直接回滚,不必等下一次真实调用。replay 用例的来源是**真实调用痕迹**:
+轻循环评估时,把 corrected / failed 及其他有代表性的调用蒸馏成用例
+`{"essence":"任务要点","expect":"按 rubric 的达标要求","src":"ledger ts"}`——
+真实分布、零人工编写(darwin 的 test prompts 是手编合成的,此处严格更优)。
+
+**验证 rollout(成对盲评)**:被编辑 skill 的下一次被评估调用即自然验证。派一个
 **新的独立 subagent**,同时给它:旧版全文(git 上一 commit 或 `.bak`)、新版全文、
 该次调用的真实执行痕迹、该 skill 的 rubric——同一上下文内成对比较出 better /
-worse / tie(绝对打分跨会话有校准噪声,成对比较可抵消)。worse → 回滚
-(git revert 或恢复 `.bak`),提案连失败原因写入 `data/rejected.md`;
+worse / tie(绝对打分跨会话有校准噪声,成对比较可抵消)。**tie 或与 replay 结论
+分歧时,加派 2 个独立评委成多数票**(N=3;平时单评委省成本,难判时才升员)。
+worse → 回滚(git revert 或恢复 `.bak`),提案连失败原因写入 `data/rejected.md`;
 better / tie → 保留,解除冻结。
 
 ## 自我优化(仅在升级或手动运行时)
@@ -111,6 +126,8 @@ better / tie → 保留,解除冻结。
   阈值 N,缺省 5),改完复述当前配置。config.json 缺失或损坏时脚本回退 threshold/5。
 - `evolve list` — 列出全部 skill 及其进化等级与账面健康度;`evolve add <skill> [evolve|suggest]` /
   `evolve remove <skill>` — 改写 `config.json` 的 evolution 块,改完复述。
+- `report [skill]` — 进化叙事卡:各版本(`ver`)健康度趋势、已保留/已回滚的编辑、
+  rubric 增删、replay 通过率;不带参数出全局摘要。
 
 ## 数据文件
 
@@ -118,7 +135,8 @@ better / tie → 保留,解除冻结。
 `{"ts","session","skill","ver","trigger_fit","gaps","outcome","friction","note"}`,
 评估时把 pending 条目的 `ver` 原样带入)·
 `data/learnings/<skill>.md`(逐 skill 经验)· `data/rubrics/<skill>.md`(逐 skill 尺子,
-git 版本化)· `data/rejected.md`(拒绝缓冲)· `suggestions/<skill>.md`(待决提案)·
+git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,仅本地)·
+`data/rejected.md`(拒绝缓冲)· `suggestions/<skill>.md`(待决提案)·
 `CHANGELOG.md`(编辑留痕)。停用整套机制:本目录创建名为 `off` 的文件。
 
 存储设计决定:账本用 append-only JSONL 而非 sqlite——当前量级(日十条级)模型直读
