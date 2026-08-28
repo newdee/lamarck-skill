@@ -1,5 +1,9 @@
 # lamarck
 
+[![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![selftest](https://img.shields.io/badge/selftest-43%2F43-brightgreen)](scripts/selftest.js)
+
 **Governed evolution for Claude Code skills.** lamarck continuously watches
 every real skill invocation, drives the observed skills' evolution under
 evidence gates — and evolves itself by the same rules while it runs. Traits
@@ -144,7 +148,10 @@ evidence gates, user-in-the-loop, rollback, whitelists.
 
 ## Status
 
-Pre-release. Design log in [CHANGELOG.md](CHANGELOG.md).
+Released: `lamarck-skill` on [npm](https://www.npmjs.com/package/lamarck-skill)
+and GitHub. Design log in [CHANGELOG.md](CHANGELOG.md). Production case
+studies (evidence tier 5) are accumulating from real usage and will be
+published here as they complete.
 
 ---
 
