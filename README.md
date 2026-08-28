@@ -41,6 +41,26 @@ to a 3-judge majority only on close calls) and human-in-the-loop checkpoints.
 Everything irreversible requires explicit user confirmation. Telemetry never
 leaves the machine (`.gitignore`d); rubrics are versioned with the code.
 
+## Evidence
+
+Honesty policy: **no self-graded scores** (an optimizer scoring its own output
+with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
+the SkillLens paper darwin-skill itself cites). Three tiers instead:
+
+1. **Mechanism self-test** — `pwsh scripts/selftest.ps1`, isolated temp
+   sandbox, zero contact with live telemetry. Currently **37/37**: hook
+   logging, genome stamping, threshold/every/manual triggers, config
+   fallbacks, session isolation, loop guards, byte-reproducible output,
+   gitignore boundaries. CI-able (exit code gated).
+2. **Production telemetry** (accumulating by design): every invocation is
+   stamped with the target skill's genome hash, so each accepted edit gets
+   before/after windows measured in **user-correction rate** — ground truth
+   from user behavior, not model self-scoring. Replay validation adds a
+   controlled comparison: identical real inputs, old vs new genome. All
+   verify verdicts are ledgered; `/lamarck report` aggregates them.
+3. **Case studies** — to be published from real usage before any promotion,
+   with observational caveats (task-mix drift) stated, not hidden.
+
 ## Requirements
 
 Claude Code on Windows (pwsh) — hooks in `~/.claude/settings.json` (PostToolUse

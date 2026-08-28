@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - traits acquired through real use are i
 license: MIT
 metadata:
   author: kian
-  version: "4.2"
+  version: "4.3"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, pwsh, and git
 ---
 
@@ -97,6 +97,11 @@ worse / tie(绝对打分跨会话有校准噪声,成对比较可抵消)。**tie 
 分歧时,加派 2 个独立评委成多数票**(N=3;平时单评委省成本,难判时才升员)。
 worse → 回滚(git revert 或恢复 `.bak`),提案连失败原因写入 `data/rejected.md`;
 better / tie → 保留,解除冻结。
+
+**结论必须落账(可证明性)**:replay、盲评、版本分窗三种验证各记一行 verify 记录
+进 ledger:`{"ts","skill","type":"verify","stage":"replay|judge|window","old_ver",
+"new_ver","result":"better|worse|tie","decision":"keep|revert","detail":""}`。
+`report` 的进化战绩全部由这些记录汇总——没有落账的效果等于没有效果。
 
 ## 自我优化(仅在升级或手动运行时)
 
