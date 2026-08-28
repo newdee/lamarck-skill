@@ -1,47 +1,60 @@
-# X/Twitter thread draft (EN)
+# X/Twitter drafts (EN) - each block fits the 280-char free-tier limit
 
-> Post from your own account; edit freely. One tweet per block.
+> Post from your own account; edit freely. Raw char counts are under 280
+> even before t.co shortens URLs to 23 chars, so every block is safe.
+
+## Option A: single tweet (lowest friction)
+
+Darwin evolves skills by selection. Lamarck evolves them by use.
+
+lamarck: Claude Code skills that evolve from real usage - evidence-gated
+edits, user-approved, replay-tested, self-evolving with an audited
+changelog.
+
+npx lamarck-skill
+github.com/newdee/lamarck-skill
+
+## Option B: thread (6 tweets)
 
 1/
-Darwin makes skills evolve by selection.
-Lamarck makes them evolve by use.
+Darwin evolves skills by selection. Lamarck evolves them by use.
 
-I built lamarck: governed evolution for Claude Code skills, driven by
-production telemetry instead of synthetic tests.
+I built lamarck for Claude Code: skills evolve from real production
+usage, not synthetic tests - governed, evidence-gated, reversible.
 
 npx lamarck-skill
 
 2/
-The problem with offline skill optimizers (SkillOpt, darwin-skill): they
-never see real usage. Hand-written test prompts, judge panels scoring
-their own work. The signal that matters - what actually went wrong when a
-real user ran the skill - is invisible to them.
+Offline skill optimizers (SkillOpt, darwin-skill) never see real usage.
+Hand-written test prompts. Judges scoring their own work.
+
+The signal that matters - what went wrong when a real user ran the
+skill - is invisible to them.
 
 3/
-lamarck's loop: hooks log every real skill invocation (stamped with the
-skill file's content hash). A light end-of-turn evaluation writes verdicts
-to a ledger. Corrections from the user are ground truth - not LLM
-self-scoring (~46% accuracy per the SkillLens paper).
+lamarck's loop: hooks log every real invocation, content-hash stamped.
+End-of-turn evaluation ledgers what happened.
+
+User corrections are the ground truth - not LLM self-scores (~46%
+accuracy per the SkillLens paper).
 
 4/
-Evolution is gated, not vibes: >=2 independent same-type gaps -> one
-bounded edit proposal -> the user picks apply / keep as suggestion /
-reject. Then three rollback layers: replay real traces old-vs-new, paired
-blind judging, per-version health windows.
+Evolution is gated: 2+ independent same-type gaps -> one bounded edit ->
+you apply, park, or reject it.
+
+Three rollback layers: replay real traces old-vs-new, paired blind
+judging, per-version health stats.
 
 5/
-Use it or lose it, literally: skills that go clean for 10 straight
-evaluations drop to spot-checks (convergence). Rubric entries nobody
-cites for 90 days become pruning proposals (atrophy). Neither exists in
-any offline optimizer.
+Use it or lose it, literally: 10 clean evaluations and a skill drops to
+spot-checks. Rubric entries uncited for 90 days become pruning
+proposals.
+
+No offline optimizer prunes.
 
 6/
-Receipts, not claims: mechanism selftest 44/44 (CI on ubuntu/macos/
-windows), a mutation bench whose protocol was committed BEFORE execution
-(4/5 known-degraded variants caught, 0/2 improved ones falsely
-rejected), and a CHANGELOG that is itself an audited self-evolution log.
-
-7/
-MIT, cross-platform (Node 18+), telemetry never leaves your machine.
+Receipts, not claims: 44-check selftest in CI (ubuntu/macos/windows), a
+mutation bench preregistered BEFORE execution (4/5 degraded caught, 0/2
+false positives), SLSA provenance on npm.
 
 github.com/newdee/lamarck-skill
