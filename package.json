@@ -1,6 +1,6 @@
 {
   "name": "lamarck-skill",
-  "version": "5.2.0",
+  "version": "5.3.0",
   "description": "Lamarckian skill evolution for Claude Code - continuously monitors real skill invocations, drives governed evolution of the observed skills, and evolves itself by the same rules.",
   "bin": {
     "lamarck-skill": "bin/install.js"

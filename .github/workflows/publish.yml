@@ -1,0 +1,26 @@
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC for npm trusted publishing - no stored secrets
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: update npm (trusted publishing needs a recent npm)
+        run: npm install -g npm@latest
+      - name: tag must match package.json version
+        run: node -e "const v='v'+require('./package.json').version; if (v !== process.env.GITHUB_REF_NAME) { console.error(`tag ${process.env.GITHUB_REF_NAME} != package ${v}`); process.exit(1) }"
+      - name: gate on selftest
+        run: node scripts/selftest.js
+      - name: publish (OIDC, provenance automatic)
+        run: npm publish --access public
