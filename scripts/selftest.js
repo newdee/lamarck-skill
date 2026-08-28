@@ -129,9 +129,15 @@ try {
     name === 'lamarck' && (!deployed || path.basename(repo) === 'lamarck'));
   check('static: description within 1024 chars', desc.length > 0 && desc.length <= 1024);
   check('static: SKILL.md under 500 lines', md.split('\n').length < 500);
-  // Git-boundary checks only make sense inside the development repo; an
-  // npx-installed copy has no .git and skips them gracefully.
-  const inGitRepo = spawnSync('git', ['-C', repo, 'rev-parse', '--git-dir']).status === 0;
+  // Git-boundary checks only make sense when this directory is itself the
+  // repository root. An installed copy has no .git of its own - and if it
+  // happens to sit inside some OTHER repository (e.g. a CI workspace),
+  // git would walk up and judge our paths against the wrong .gitignore.
+  let inGitRepo = false;
+  const top = spawnSync('git', ['-C', repo, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  if (top.status === 0) {
+    inGitRepo = path.resolve(top.stdout.trim()).toLowerCase() === path.resolve(repo).toLowerCase();
+  }
   if (inGitRepo) {
     check('static: telemetry ignored, rubrics+README tracked',
       gitIgnored('data/ledger.jsonl') && gitIgnored('data/pending.jsonl') && gitIgnored('data/replays/x.jsonl') &&

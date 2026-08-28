@@ -22,8 +22,8 @@ jobs:
       - name: mechanism selftest
         run: node scripts/selftest.js
       - name: installer end-to-end (sandbox home)
-        run: node bin/install.js install --home ./ci-home
+        run: node bin/install.js install --home "${{ runner.temp }}/lamarck-home"
       - name: installer idempotence
-        run: node bin/install.js install --home ./ci-home
+        run: node bin/install.js install --home "${{ runner.temp }}/lamarck-home"
       - name: installer uninstall
-        run: node bin/install.js uninstall --home ./ci-home
+        run: node bin/install.js uninstall --home "${{ runner.temp }}/lamarck-home"
