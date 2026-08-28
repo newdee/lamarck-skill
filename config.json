@@ -1,4 +1,9 @@
 {
   "mode": "threshold",
-  "threshold": 5
+  "threshold": 5,
+  "evolution": {
+    "default": "observe",
+    "evolve": ["seo-cron-ops", "lamarck"],
+    "suggest": []
+  }
 }

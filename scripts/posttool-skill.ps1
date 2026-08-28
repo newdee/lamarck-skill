@@ -22,11 +22,27 @@ try {
     $skillArgs = [string]$data.tool_input.args
     if ($skillArgs.Length -gt 200) { $skillArgs = $skillArgs.Substring(0, 200) }
 
+    # Genome version stamp: content hash of the target skill's SKILL.md at
+    # invocation time. Enables per-version performance windows (regression
+    # detection after edits). Plugin skills (name contains ':') have no
+    # resolvable path here -> empty stamp.
+    $ver = ''
+    try {
+        if ($skill -notmatch ':') {
+            $sf = Join-Path (Split-Path -Parent $root) "$skill\SKILL.md"
+            if (Test-Path $sf) {
+                $md5 = [System.Security.Cryptography.MD5]::Create()
+                $ver = [System.BitConverter]::ToString($md5.ComputeHash([System.IO.File]::ReadAllBytes($sf))).Replace('-', '').Substring(0, 8).ToLower()
+            }
+        }
+    } catch { }
+
     $rec = [ordered]@{
         ts      = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
         session = [string]$data.session_id
         skill   = $skill
         args    = $skillArgs
+        ver     = $ver
     } | ConvertTo-Json -Compress
 
     [System.IO.File]::AppendAllText(

@@ -1,10 +1,10 @@
 ---
 name: lamarck
-description: Lamarckian skill evolution - traits acquired through real use are inherited back into the skill file. A PostToolUse hook logs every skill invocation; a Stop hook runs a light evaluation loop whose protocol is embedded in the hook reason, so this SKILL.md is not reloaded every turn. Per-skill dynamic rubrics (git-versioned) define what "good" means for each skill and evolve with it. Trigger timing is user-configurable in config.json (every turn / manual only / threshold batch). Read this file only when escalating - when a skill accumulates enough same-type evidence to propose an edit, or on manual invocation. Use when the stop hook says to escalate, or when asked to review skill performance, optimize or improve a skill, audit the skill ledger, distill skill learnings, or switch the lamarck trigger mode.
+description: Lamarckian skill evolution - traits acquired through real use are inherited back into the skill file. A PostToolUse hook logs every skill invocation (stamped with the target skill's genome hash for per-version regression detection); a Stop hook runs a light evaluation loop whose protocol is embedded in the hook reason, so this SKILL.md is not reloaded every turn. Per-skill dynamic rubrics (git-versioned) define what "good" means for each skill; an evolution whitelist in config.json controls which skills may be edited (evolve/suggest/observe, default observe). Read this file only when escalating - when a skill accumulates enough same-type evidence to propose an edit, or on manual invocation. Use when the stop hook says to escalate, or when asked to review skill performance, optimize or improve a skill, audit the skill ledger, distill skill learnings, manage the evolution whitelist, or switch the lamarck trigger mode.
 license: MIT
 metadata:
   author: kian
-  version: "4.0"
+  version: "4.1"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, pwsh, and git
 ---
 
@@ -34,9 +34,25 @@ compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.
 - **git 版本化**:本目录即 git 仓库,rubric 与 skill 协议同库提交,可 diff 可回滚;
   遥测(pending/ledger/learnings)被 .gitignore 排除,仅本地留存。
 
+## 进化分级(白名单)与防负优化
+
+`config.json` 的 `evolution` 块决定每个 skill 的进化等级(显式列表 > `default`;
+新装 skill 自动落入 `default`,当前默认 `observe`):
+
+- **evolve**(白名单,当前:seo-cron-ops、lamarck):过门提案可走用户三选一直接施工。
+- **suggest**:过门提案只写 `suggestions/<skill>.md`,永不直接编辑。
+- **observe**(默认):只记账、沉淀 learnings、长 rubric,**不产生任何提案**;
+  证据照积,升级到 evolve 后历史证据立即可用。
+- 插件 / marketplace / synced skill:无论配置如何,永不直接编辑(上限 suggest)。
+
+**动态评分防负优化**:每条账本带 `ver`(调用时目标 SKILL.md 的内容哈希 8 位)。
+升级或 `audit` 时按 `ver` 分窗计算该 skill 的健康度(corrected+failed 占比、gap 频率):
+编辑后版本窗口(样本 ≥3)比编辑前变差 → 判定负优化,自动产出**回滚提案**
+(仍走用户三选一)。这是成对盲评(单次、即时)之外的第二道统计防线(多次、滞后)。
+
 ## 升级后:优化门(SkillOpt 验证门的文本版)
 
-对某个 skill 提出编辑,必须同时满足:
+对某个 skill 提出编辑,必须同时满足(**且该 skill 进化等级为 evolve 或 suggest**):
 
 - **证据 ≥2**:ledger/learnings 中该 skill 有 ≥2 次**独立调用**出现同类 gap
   (单次观察永不触发编辑,n=1 是噪声)。
@@ -93,11 +109,18 @@ better / tie → 保留,解除冻结。
 - `stats` — 只看账:各 skill 调用频次、corrected 率、gap 排行。
 - `mode <every|manual|threshold> [N]` — 改写 `config.json` 切换触发模式(threshold 可带
   阈值 N,缺省 5),改完复述当前配置。config.json 缺失或损坏时脚本回退 threshold/5。
+- `evolve list` — 列出全部 skill 及其进化等级与账面健康度;`evolve add <skill> [evolve|suggest]` /
+  `evolve remove <skill>` — 改写 `config.json` 的 evolution 块,改完复述。
 
 ## 数据文件
 
-`data/pending.jsonl`(待处理)· `data/ledger.jsonl`(账本,格式
-`{"ts","session","skill","trigger_fit","gaps","outcome","friction","note"}`)·
+`data/pending.jsonl`(待处理,含 `ver` 基因版本戳)· `data/ledger.jsonl`(账本,格式
+`{"ts","session","skill","ver","trigger_fit","gaps","outcome","friction","note"}`,
+评估时把 pending 条目的 `ver` 原样带入)·
 `data/learnings/<skill>.md`(逐 skill 经验)· `data/rubrics/<skill>.md`(逐 skill 尺子,
 git 版本化)· `data/rejected.md`(拒绝缓冲)· `suggestions/<skill>.md`(待决提案)·
 `CHANGELOG.md`(编辑留痕)。停用整套机制:本目录创建名为 `off` 的文件。
+
+存储设计决定:账本用 append-only JSONL 而非 sqlite——当前量级(日十条级)模型直读
+zero 依赖;若将来到万行级或需要复杂联查,`data/*.jsonl` 可一键导入 sqlite(本机已有
+sqlite3),现在不预建。
