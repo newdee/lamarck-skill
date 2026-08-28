@@ -140,6 +140,20 @@ files and telemetry): `npx lamarck-skill uninstall`
 Claude Code on any platform (Windows / macOS / Linux) — Node.js 18+ and git.
 Hooks wired in `~/.claude/settings.json` (PostToolUse on `Skill`, Stop).
 
+## Adjacent work
+
+Beyond the lane table: [self-improving-skills](https://github.com/UniM0cha/self-improving-skills)
+also hooks PostToolUse and edits SKILL.md files - the closest neighbor.
+The split: it triggers on **activity volume** (tool-call counts since last
+distillation) and edits automatically in the background, validating syntax
+after the fact; lamarck triggers on **evaluated outcomes** (gap taxonomy,
+user-correction ground truth), gates every edit on evidence and user
+approval, and verifies semantically (replay, paired judging, version-window
+health). [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all)
+generates improvement recommendations from manual session reviews (no hooks,
+no verification). Skill harvesters (self-learning-skills, autoskill) create
+new skills from sessions rather than evolving existing ones.
+
 ## Roadmap
 
 The genome abstraction is not skill-specific: any text artifact that steers

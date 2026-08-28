@@ -97,6 +97,17 @@ npx lamarck-skill
 任意平台的 Claude Code(Windows / macOS / Linux)——Node.js 18+ 与 git。
 hook 接在 `~/.claude/settings.json`(PostToolUse 匹配 `Skill`,Stop)。
 
+## 相邻工作
+
+赛道表之外:[self-improving-skills](https://github.com/UniM0cha/self-improving-skills)
+也用 PostToolUse hook 且会改 SKILL.md——最近的邻居。分界:它按**活动量**触发
+(距上次蒸馏的工具调用数),后台自动改、事后只验语法;lamarck 按**被评估的结果**
+触发(gap 分类、用户纠正作 ground truth),每笔编辑过证据门+用户批准,并做语义
+验证(replay、成对盲评、版本分窗健康度)。
+[task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all)
+靠手动会话复盘产出改进建议(无 hook、无验证)。skill 收割类
+(self-learning-skills、autoskill)是从会话造**新** skill,不是进化既有 skill。
+
 ## 路线图
 
 基因抽象不限于 skill:任何驾驭 agent、且在生产中被反复使用的文本工件,都能
