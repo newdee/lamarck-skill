@@ -29,6 +29,7 @@ npx lamarck-skill
 | Rubric | fixed | fixed 9-dim (SkillLens) | **per-skill, dynamic, git-versioned** — crystallized from evidence, evolves with the skill |
 | Regression tests | benchmarks | hand-written prompts | **replayed from real traces** (zero authoring) |
 | Direction | improve | improve | improve **and prune** (use-it-or-lose-it) |
+| Scope | one benchmark target per run | skills you select, each needing test prompts | **every installed skill, passively, zero setup** — per-skill governance levels |
 
 What it keeps from them: SkillOpt's validation gating, bounded edits and
 rejected-edit buffer; darwin's git rollback, paired blind judging (escalating
@@ -142,17 +143,24 @@ Hooks wired in `~/.claude/settings.json` (PostToolUse on `Skill`, Stop).
 
 ## Adjacent work
 
-Beyond the lane table: [self-improving-skills](https://github.com/UniM0cha/self-improving-skills)
-also hooks PostToolUse and edits SKILL.md files - the closest neighbor.
-The split: it triggers on **activity volume** (tool-call counts since last
-distillation) and edits automatically in the background, validating syntax
-after the fact; lamarck triggers on **evaluated outcomes** (gap taxonomy,
-user-correction ground truth), gates every edit on evidence and user
-approval, and verifies semantically (replay, paired judging, version-window
-health). [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all)
-generates improvement recommendations from manual session reviews (no hooks,
-no verification). Skill harvesters (self-learning-skills, autoskill) create
-new skills from sessions rather than evolving existing ones.
+The closest neighbor is [self-improving-skills](https://github.com/UniM0cha/self-improving-skills)
+- it also hooks PostToolUse and edits SKILL.md files. The split, line by
+line (with [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all)
+for reference):
+
+| | lamarck | self-improving-skills | task-observer |
+|---|---|---|---|
+| Trigger | **evaluated outcomes**: gap taxonomy, user corrections as ground truth | activity volume: N tool calls / file edits since last distillation | manual session review |
+| Scope | **every installed skill, passively** (plugins capped at suggest); per-skill evolve/suggest/observe levels | centers on its own distilled skills | whatever you review by hand |
+| Governance | evidence gate (>=2 independent same-type gaps) + user approval per edit | automatic background edits, validated after writing | recommendations only, no edits |
+| Verification | **semantic**: replay real traces old-vs-new, paired blind judging, version-window health | syntactic: rollback on malformed SKILL.md | none |
+| Pruning | citation-based proposals (90-day zero-cite entries) | time-based archiving (30/90 days unused) | none |
+| Proof | preregistered bench, cross-platform CI selftest, audited self-application | - | - |
+
+One sentence: it asks "used a lot - time to distill"; lamarck asks "how
+did it perform, is the evidence sufficient, did the edit actually help".
+Skill harvesters (self-learning-skills, autoskill) create *new* skills
+from sessions rather than evolving existing ones.
 
 ## Roadmap
 

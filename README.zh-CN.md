@@ -27,6 +27,7 @@ npx lamarck-skill
 | 尺子 | 固定 | 固定 9 维(SkillLens) | **逐 skill、动态、git 版本化**——从证据结晶,随 skill 进化 |
 | 回归测试 | 基准 | 手工编写 prompt | **从真实痕迹重放**(零人工编写) |
 | 方向 | 改进 | 改进 | 改进**且修剪**(用进废退) |
+| 覆盖面 | 每次针对一个基准目标 | 你逐个指定的 skill,各需配测试题 | **全部已装 skill,被动零配置**——逐 skill 治理分级 |
 
 保留了两家的精华:SkillOpt 的验证门、有界编辑与拒绝缓冲;darwin 的 git 回滚、
 成对盲评(仅难判时升 3 评委多数票)与人在环检查点。
@@ -99,14 +100,22 @@ hook 接在 `~/.claude/settings.json`(PostToolUse 匹配 `Skill`,Stop)。
 
 ## 相邻工作
 
-赛道表之外:[self-improving-skills](https://github.com/UniM0cha/self-improving-skills)
-也用 PostToolUse hook 且会改 SKILL.md——最近的邻居。分界:它按**活动量**触发
-(距上次蒸馏的工具调用数),后台自动改、事后只验语法;lamarck 按**被评估的结果**
-触发(gap 分类、用户纠正作 ground truth),每笔编辑过证据门+用户批准,并做语义
-验证(replay、成对盲评、版本分窗健康度)。
-[task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all)
-靠手动会话复盘产出改进建议(无 hook、无验证)。skill 收割类
-(self-learning-skills、autoskill)是从会话造**新** skill,不是进化既有 skill。
+最近的邻居是 [self-improving-skills](https://github.com/UniM0cha/self-improving-skills)
+——它也用 PostToolUse hook、也会改 SKILL.md。逐行分界(附
+[task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) 作参照):
+
+| | lamarck | self-improving-skills | task-observer |
+|---|---|---|---|
+| 触发 | **被评估的结果**:gap 分类、用户纠正作 ground truth | 活动量:距上次蒸馏 N 次工具调用/文件改动 | 手动会话复盘 |
+| 覆盖面 | **全部已装 skill,被动观察**(插件上限 suggest);逐 skill evolve/suggest/observe 分级 | 以它自己蒸馏出的 skill 为主 | 你手动复盘到哪算哪 |
+| 治理 | 证据门(≥2 次独立同类 gap)+ 每笔编辑用户批准 | 后台自动改,写完才校验 | 只出建议,不动手 |
+| 验证 | **语义级**:真实痕迹 replay 新旧对照、成对盲评、版本分窗健康度 | 语法级:SKILL.md 写坏才回滚 | 无 |
+| 修剪 | 引用型提案(条目 90 天零引用) | 时间型归档(30/90 天没用) | 无 |
+| 效果证明 | 预注册基准、跨平台 CI 自测、留痕的自应用 | — | — |
+
+一句话:它问"用得多了,该总结了";lamarck 问"表现如何、证据够不够、改完
+真的变好没有"。skill 收割类(self-learning-skills、autoskill)是从会话造
+**新** skill,不是进化既有 skill。
 
 ## 路线图
 
