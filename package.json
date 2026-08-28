@@ -5,6 +5,15 @@
   "bin": {
     "lamarck-skill": "bin/install.js"
   },
+  "files": [
+    "bin/",
+    "scripts/",
+    "SKILL.md",
+    "CHANGELOG.md",
+    "config.example.json",
+    "data/rubrics/README.md",
+    "bench/"
+  ],
   "engines": {
     "node": ">=18"
   },
