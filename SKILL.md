@@ -100,6 +100,11 @@ worse / tie(绝对打分跨会话有校准噪声,成对比较可抵消)。**tie 
 worse → 回滚(git revert 或恢复 `.bak`),提案连失败原因写入 `data/rejected.md`;
 better / tie → 保留,解除冻结。
 
+**回滚语义(按证据强度分级)**:回滚 = 恢复用户已批准的上一基线,**不算新编辑**,
+不受"三选一"与有界编辑约束(Iron Rule 2/6 豁免)——但必须落账并在下次输出中
+显式告知用户。分级:replay / 盲评是同输入直接对照(强证据)→ **自动回滚**;
+版本分窗是观察性统计(弱证据,可能混杂任务漂移)→ 只出**回滚提案**,走三选一。
+
 **结论必须落账(可证明性)**:replay、盲评、版本分窗三种验证各记一行 verify 记录
 进 ledger:`{"ts","skill","type":"verify","stage":"replay|judge|window","old_ver",
 "new_ver","result":"better|worse|tie","decision":"keep|revert","detail":""}`。
@@ -115,7 +120,8 @@ better / tie → 保留,解除冻结。
 
 1. 单次观察永不触发编辑,只记账与沉淀(rubric 入册除外,n=1 可)。
 2. 任何 skill 编辑施工前必须让用户选择(AskUserQuestion);非交互会话只落提案。
-3. 每次编辑必须可回滚(git commit 或 `.bak`),且写入 CHANGELOG。
+   例外:恢复用户已批准基线的自动回滚(强证据触发),须落账并告知。
+3. 每次编辑必须可回滚(git commit 或 `.bak`),且写入 CHANGELOG。回滚本身同样记 CHANGELOG。
 4. 永不编辑插件 / marketplace / synced skill 的文件。
 5. 永不删除 ledger 历史、learnings 既有观察与 rubric attic。
 6. 每次编辑 ≤3 处、单处 ≤10 行,禁止整文件重写。
