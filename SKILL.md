@@ -150,7 +150,7 @@ better / tie → 保留,解除冻结。
 `data/learnings/<skill>.md`(逐 skill 经验)· `data/rubrics/<skill>.md`(逐 skill 尺子,
 git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,仅本地)·
 `data/rejected.md`(拒绝缓冲)· `suggestions/<skill>.md`(待决提案)·
-`CHANGELOG.md`(编辑留痕)。停用整套机制:本目录创建名为 `off` 的文件。
+`CHANGELOG.md`(编辑留痕)。`off` 文件:停用自动 hook(手动调用不受影响)。
 
 存储设计决定:账本用 append-only JSONL 而非 sqlite——当前量级(日十条级)模型直读
 zero 依赖;若将来到万行级或需要复杂联查,`data/*.jsonl` 可一键导入 sqlite(本机已有

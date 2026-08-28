@@ -86,7 +86,8 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
    }
    ```
 4. Verify: `pwsh scripts/selftest.ps1` — all checks must pass.
-5. Kill switch: create a file named `off` in the skill directory.
+5. Kill switch: create a file named `off` in the skill directory — silences
+   both hooks; manual `/lamarck` invocation still works (explicit intent).
 
 ## Requirements
 
