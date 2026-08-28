@@ -1,0 +1,17 @@
+{
+  "target": "csv-cleaner",
+  "baseline": "targets/csv-cleaner/SKILL.md",
+  "variants": {
+    "D1": {"file": "targets/csv-cleaner/mutants/D1.md", "truth": "degraded", "degradation": "failure handling removed: quarantine step, abort threshold and the whole Failure modes section deleted; 'never silently drop' rule deleted"},
+    "D2": {"file": "targets/csv-cleaner/mutants/D2.md", "truth": "degraded", "degradation": "language softened everywhere: must/NEVER/STOP replaced by consider/may/might; hard rules became preferences"},
+    "D3": {"file": "targets/csv-cleaner/mutants/D3.md", "truth": "degraded", "degradation": "concrete parameters removed: encoding list, 4KB sniff window, ISO-8601 and accepted date formats, 20% abort threshold all made vague"},
+    "D4": {"file": "targets/csv-cleaner/mutants/D4.md", "truth": "degraded", "degradation": "header validation step deleted entirely"},
+    "D5": {"file": "targets/csv-cleaner/mutants/D5.md", "truth": "degraded", "degradation": "contradiction injected: 'silently drop any malformed row' added while 'never silently drop a row' still present"},
+    "I1": {"file": "targets/csv-cleaner/mutants/I1.md", "truth": "improved", "improvement": "new explicit failure branch: quoted multiline cells parsed with a real CSV reader, parser-vs-linesplit disagreement rule"},
+    "I2": {"file": "targets/csv-cleaner/mutants/I2.md", "truth": "improved", "improvement": "dedup tightened: explicit first-occurrence tie-break, dropped keys and row numbers logged"}
+  },
+  "blinding": {
+    "note": "Per variant, baseline and variant are presented as A/B in this fixed, preregistered assignment. Judges never see names or truth labels.",
+    "baseline_is": {"D1": "B", "D2": "A", "D3": "B", "D4": "A", "D5": "B", "I1": "A", "I2": "B"}
+  }
+}
