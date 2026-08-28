@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [18, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: mechanism selftest
+        run: node scripts/selftest.js
+      - name: installer end-to-end (sandbox home)
+        run: node bin/install.js install --home ./ci-home
+      - name: installer idempotence
+        run: node bin/install.js install --home ./ci-home
+      - name: installer uninstall
+        run: node bin/install.js uninstall --home ./ci-home

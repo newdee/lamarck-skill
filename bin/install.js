@@ -21,7 +21,8 @@ const settingsPath = path.join(claudeDir, 'settings.json');
 const src = path.resolve(__dirname, '..');
 
 const CORE = [
-  'SKILL.md', 'README.md', 'CHANGELOG.md', 'LICENSE', 'config.example.json',
+  'SKILL.md', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'LICENSE',
+  'config.example.json',
   'scripts/posttool-skill.js', 'scripts/stop-evaluate.js', 'scripts/selftest.js',
   'data/rubrics/README.md'
 ];

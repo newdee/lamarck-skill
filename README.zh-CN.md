@@ -3,6 +3,7 @@
 [English](README.md) | 简体中文
 
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
+[![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![selftest](https://img.shields.io/badge/selftest-44%2F44-brightgreen)](scripts/selftest.js)
 
