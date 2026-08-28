@@ -121,7 +121,12 @@ try {
   const fm = md.split('---')[1] || '';
   const name = (fm.match(/name: (\S+)/) || [])[1] || '';
   const desc = (fm.match(/description: (.+)/) || [])[1] || '';
-  check('static: frontmatter name matches directory', name === path.basename(repo));
+  // Directory-name match only matters where Claude Code discovers skills
+  // (a parent directory literally named "skills"); a dev checkout may be
+  // cloned as lamarck-skill and that is fine.
+  const deployed = path.basename(path.dirname(repo)) === 'skills';
+  check('static: frontmatter name is lamarck; matches directory when deployed',
+    name === 'lamarck' && (!deployed || path.basename(repo) === 'lamarck'));
   check('static: description within 1024 chars', desc.length > 0 && desc.length <= 1024);
   check('static: SKILL.md under 500 lines', md.split('\n').length < 500);
   // Git-boundary checks only make sense inside the development repo; an
