@@ -48,7 +48,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `pwsh scripts/selftest.ps1`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **37/37**: hook
+   sandbox, zero contact with live telemetry. Currently **39/39**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries. CI-able (exit code gated).
@@ -61,10 +61,37 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
 3. **Case studies** — to be published from real usage before any promotion,
    with observational caveats (task-mix drift) stated, not hidden.
 
+## Install
+
+1. Clone into your skills directory:
+   ```
+   git clone https://github.com/newdee/lamarck-skill "$HOME\.claude\skills\lamarck"
+   ```
+2. Copy `config.example.json` to `config.json` (local, untracked) and adjust
+   the trigger mode and evolution whitelist.
+3. Wire the two hooks into `~/.claude/settings.json` (replace `<HOME>` with
+   your absolute home path; `args` exec form, no shell parsing):
+   ```json
+   "hooks": {
+     "PostToolUse": [{ "matcher": "Skill", "hooks": [{
+       "type": "command", "command": "pwsh",
+       "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                "<HOME>\\.claude\\skills\\lamarck\\scripts\\posttool-skill.ps1"],
+       "timeout": 10 }]}],
+     "Stop": [{ "hooks": [{
+       "type": "command", "command": "pwsh",
+       "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                "<HOME>\\.claude\\skills\\lamarck\\scripts\\stop-evaluate.ps1"],
+       "timeout": 10 }]}]
+   }
+   ```
+4. Verify: `pwsh scripts/selftest.ps1` — all checks must pass.
+5. Kill switch: create a file named `off` in the skill directory.
+
 ## Requirements
 
-Claude Code on Windows (pwsh) — hooks in `~/.claude/settings.json` (PostToolUse
-on `Skill`, Stop), plus git. POSIX port: planned.
+Claude Code on Windows (pwsh 7+) — hooks in `~/.claude/settings.json`
+(PostToolUse on `Skill`, Stop), plus git. POSIX port: planned.
 
 ## Status
 

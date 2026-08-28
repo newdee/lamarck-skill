@@ -3,7 +3,7 @@
   "threshold": 5,
   "evolution": {
     "default": "observe",
-    "evolve": ["seo-cron-ops", "lamarck"],
+    "evolve": ["lamarck"],
     "suggest": []
   }
 }

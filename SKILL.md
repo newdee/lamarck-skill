@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - traits acquired through real use are i
 license: MIT
 metadata:
   author: kian
-  version: "4.3"
+  version: "4.4"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, pwsh, and git
 ---
 
@@ -37,8 +37,10 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
 
 ## 进化分级(白名单)与防负优化
 
-`config.json` 的 `evolution` 块决定每个 skill 的进化等级(显式列表 > `default`;
-新装 skill 自动落入 `default`,当前默认 `observe`):
+`config.json`(本地文件,不入库;首次使用从 `config.example.json` 复制)的
+`evolution` 块决定每个 skill 的进化等级(显式列表 > `default`;新装 skill 自动
+落入 `default`,默认 `observe`)。**config.json 缺失时:一律 `observe`,提示用户
+创建**:
 
 - **evolve**(白名单,当前:seo-cron-ops、lamarck):过门提案可走用户三选一直接施工。
 - **suggest**:过门提案只写 `suggestions/<skill>.md`,永不直接编辑。

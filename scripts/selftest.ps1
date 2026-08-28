@@ -119,8 +119,15 @@ try {
     git -C $repo check-ignore -q data/rubrics/x.md; $i4 = $LASTEXITCODE -ne 0
     git -C $repo check-ignore -q README.md; $i5 = $LASTEXITCODE -ne 0
     Check 'static: telemetry ignored, rubrics+README tracked' ($i1 -and $i2 -and $i3 -and $i4 -and $i5)
-    $cj = Get-Content (Join-Path $repo 'config.json') -Raw | ConvertFrom-Json
-    Check 'static: config.json valid, mode legal, evolution block sane' (($cj.mode -in @('every', 'manual', 'threshold')) -and ($cj.evolution.default -in @('observe', 'suggest', 'evolve')))
+    $cj = Get-Content (Join-Path $repo 'config.example.json') -Raw | ConvertFrom-Json
+    Check 'static: config.example.json valid, mode legal, evolution block sane' (($cj.mode -in @('every', 'manual', 'threshold')) -and ($cj.evolution.default -in @('observe', 'suggest', 'evolve')))
+    git -C $repo check-ignore -q config.json; $lc = $LASTEXITCODE -eq 0
+    Check 'static: local config.json untracked (personal state)' $lc
+    $localOk = $true
+    if (Test-Path (Join-Path $repo 'config.json')) {
+        try { $localOk = ((Get-Content (Join-Path $repo 'config.json') -Raw | ConvertFrom-Json).mode -in @('every', 'manual', 'threshold')) } catch { $localOk = $false }
+    }
+    Check 'static: local config.json absent or legal' $localOk
 } finally {
     Remove-Item -Recurse -Force $base -ErrorAction SilentlyContinue
 }
