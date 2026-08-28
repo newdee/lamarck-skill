@@ -5,11 +5,11 @@
 
 ## Option A: single tweet (lowest friction)
 
-Darwin evolves skills by selection. Lamarck evolves them by use.
+Install once and EVERY Claude Code skill you have goes under evolution
+watch - hundreds at a time, passively, from real usage.
 
-lamarck: Claude Code skills that evolve from real usage - evidence-gated
-edits, user-approved, replay-tested, self-evolving with an audited
-changelog.
+Evidence-gated edits, always your approval, replay-tested. It evolves
+itself by the same rules.
 
 npx lamarck-skill
 github.com/newdee/lamarck-skill
@@ -17,10 +17,11 @@ github.com/newdee/lamarck-skill
 ## Option B: thread (6 tweets)
 
 1/
-Darwin evolves skills by selection. Lamarck evolves them by use.
+Skill optimizers improve ONE skill you point at, with hand-written
+tests.
 
-I built lamarck for Claude Code: skills evolve from real production
-usage, not synthetic tests - governed, evidence-gated, reversible.
+lamarck: install once, and EVERY skill you have goes under evolution
+watch - passively, from real usage. Darwin selects; Lamarck uses.
 
 npx lamarck-skill
 

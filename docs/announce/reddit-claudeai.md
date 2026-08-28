@@ -1,15 +1,20 @@
 # Reddit r/ClaudeAI post draft (EN)
 
 > Suggested title:
-> lamarck: my Claude Code skills now evolve from real usage (and it evolves itself, with receipts)
+> lamarck: install once, and ALL your Claude Code skills go under evolution watch (governed, with receipts)
 
-I kept seeing skill optimizers that work like exam halls: write synthetic
-test prompts, spawn judge panels, score, keep the best version. microsoft/
-SkillOpt does it with benchmarks; alchaincyf/darwin-skill does it with
-hand-written prompts and LLM judges. Both are blind to the only signal I
-actually care about: what went wrong when the skill ran for real.
+Every skill optimizer I found improves one skill at a time: you pick it,
+write test prompts for it, run judge panels on it. microsoft/SkillOpt does
+this with benchmarks, alchaincyf/darwin-skill with hand-written prompts.
+Two problems: your attention is the bottleneck (I have 230+ skills
+installed - which one did I think to optimize?), and offline judging never
+sees the only signal that matters: what went wrong when the skill ran for
+real.
 
 So I built the counterpart and named it after the other evolution guy.
+lamarck watches the whole population passively - every installed skill,
+zero setup - and lets evidence, not attention, decide what deserves to
+evolve.
 
 **lamarck** - governed evolution from production telemetry:
 

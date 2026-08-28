@@ -7,13 +7,16 @@ English | [简体中文](README.zh-CN.md)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![selftest](https://img.shields.io/badge/selftest-44%2F44-brightgreen)](scripts/selftest.js)
 
-**Governed evolution for Claude Code skills.** lamarck continuously watches
-every real skill invocation, drives the observed skills' evolution under
-evidence gates — and evolves itself by the same rules while it runs. Traits
-acquired through use are inherited back into the skill file; parts that go
-unused atrophy. Every irreversible step is user-approved, ledgered, and
-reversible: the governance is the point, not an afterthought. Counterpart to
-[darwin-skill](https://github.com/alchaincyf/darwin-skill).
+**Install once — every skill you have is under evolution watch.** lamarck
+passively observes every real invocation of every installed skill (hundreds,
+if you have them), accumulates per-skill evidence, and evolves them under
+evidence gates — edits only ever land with your approval. It evolves itself
+by the same rules while it runs. Traits acquired through use are inherited
+back into the skill file; parts that go unused atrophy. Every irreversible
+step is user-approved, ledgered, and reversible: the governance is what
+makes population-wide evolution safe. Counterpart to
+[darwin-skill](https://github.com/alchaincyf/darwin-skill), which optimizes
+one hand-picked skill at a time.
 
 ```
 npx lamarck-skill
