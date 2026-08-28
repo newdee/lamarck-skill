@@ -52,8 +52,8 @@ Honesty policy: **no self-graded scores** (an optimizer scoring its own output
 with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
-1. **Mechanism self-test** — `pwsh scripts/selftest.ps1`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **39/39**: hook
+1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
+   sandbox, zero contact with live telemetry. Currently **43/43**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries. CI-able (exit code gated).
@@ -81,29 +81,28 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
 2. Copy `config.example.json` to `config.json` (local, untracked) and adjust
    the trigger mode and evolution whitelist.
 3. Wire the two hooks into `~/.claude/settings.json` (replace `<HOME>` with
-   your absolute home path; `args` exec form, no shell parsing):
+   your absolute home path, using your platform's separators; `args` exec
+   form, no shell parsing):
    ```json
    "hooks": {
      "PostToolUse": [{ "matcher": "Skill", "hooks": [{
-       "type": "command", "command": "pwsh",
-       "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-                "<HOME>\\.claude\\skills\\lamarck\\scripts\\posttool-skill.ps1"],
+       "type": "command", "command": "node",
+       "args": ["<HOME>/.claude/skills/lamarck/scripts/posttool-skill.js"],
        "timeout": 10 }]}],
      "Stop": [{ "hooks": [{
-       "type": "command", "command": "pwsh",
-       "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-                "<HOME>\\.claude\\skills\\lamarck\\scripts\\stop-evaluate.ps1"],
+       "type": "command", "command": "node",
+       "args": ["<HOME>/.claude/skills/lamarck/scripts/stop-evaluate.js"],
        "timeout": 10 }]}]
    }
    ```
-4. Verify: `pwsh scripts/selftest.ps1` — all checks must pass.
+4. Verify: `node scripts/selftest.js` — all checks must pass.
 5. Kill switch: create a file named `off` in the skill directory — silences
    both hooks; manual `/lamarck` invocation still works (explicit intent).
 
 ## Requirements
 
-Claude Code on Windows (pwsh 7+) — hooks in `~/.claude/settings.json`
-(PostToolUse on `Skill`, Stop), plus git. POSIX port: planned.
+Claude Code on any platform (Windows / macOS / Linux) — Node.js 18+ and git.
+Hooks wired in `~/.claude/settings.json` (PostToolUse on `Skill`, Stop).
 
 ## Status
 

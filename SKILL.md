@@ -4,8 +4,8 @@ description: Lamarckian skill evolution - traits acquired through real use are i
 license: MIT
 metadata:
   author: kian
-  version: "4.7"
-compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, pwsh, and git
+  version: "5.0"
+compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, Node.js 18+, and git; cross-platform (Windows / macOS / Linux)
 ---
 
 # lamarck:用进废退的 skill 进化
@@ -87,6 +87,16 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
   提案净增 >10%,必须同时附删减案。删除类提案是一等公民:长期(≥90 天)零引用的
   rubric 条目、被 gap 证据标记为"误导/从未用到"的段落,主动产出修剪提案(同样走
   用户三选一;修剪内容进 attic / git 历史,不物理消失)。
+- **场景围栏(防震荡)**:证据全部来自单一场景标签的提案,只能做**场景分支式
+  增量**——新增"当 <场景> 时……"的条件段,不得改写共享核心;改写共享核心需要
+  **≥2 个不同场景**的证据。B 场景的优化因此伤不到 A 场景依赖的部分,切回来
+  不会退化。
+- **全场景 replay**:任何编辑的 replay 验证必须包含**其他场景**的既有用例,
+  不只触发场景——replay 语料就是全部历史场景的记忆,"切回旧场景"在施工前就被
+  预演过。
+- **反震荡检测**:提案若实质推翻 CHANGELOG/git 近期(最近 10 次)已接受的编辑,
+  判定为震荡:禁止直接覆写,强制转为场景分支提案,并附两个场景的证据对照交
+  用户决策。
 - **不在拒绝缓冲**:`data/rejected.md` 否过的同类提案不得重提,除非有新类型证据。
 - **未被冻结**:该 skill 上一次编辑的验证 rollout 尚未完成时,禁止新提案。
 
@@ -151,6 +161,8 @@ better / tie → 保留,解除冻结。
 7. `rejected.md` 中的提案不得重提,除非出现新类型证据。
 8. 评估只引用真实可见的执行痕迹;不可见就归档(outcome=archived),不编造。
 9. rubric 条目必须带 ledger 出处;验证 rollout 未完成前,该 skill 冻结新提案。
+10. 单场景证据不得改写共享核心(只许场景分支式增量);推翻近期已接受编辑的提案
+    必须转为场景分支并经用户决策,禁止覆写式打摆子。
 
 ## 手动 `/lamarck`
 
