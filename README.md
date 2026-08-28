@@ -1,8 +1,10 @@
 # lamarck
 
+English | [简体中文](README.zh-CN.md)
+
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-43%2F43-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-44%2F44-brightgreen)](scripts/selftest.js)
 
 **Governed evolution for Claude Code skills.** lamarck continuously watches
 every real skill invocation, drives the observed skills' evolution under
@@ -64,7 +66,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **43/43**: hook
+   sandbox, zero contact with live telemetry. Currently **44/44**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries. CI-able (exit code gated).
@@ -155,7 +157,4 @@ published here as they complete.
 
 ---
 
-中文简介:lamarck 是"用进废退"的 skill 进化系统——hook 观察每次真实调用,
-经验按证据门写回 skill 文件,无用部分修剪;逐 skill 动态 rubric 与代码同库
-版本化,回归用例从真实痕迹蒸馏,负优化由 replay + 成对盲评 + 版本分窗健康度
-三道防线拦截,所有编辑用户在环。
+中文文档见 [README.zh-CN.md](README.zh-CN.md)。

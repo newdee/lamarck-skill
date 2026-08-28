@@ -139,6 +139,19 @@ try {
   check('static: config.example.json valid, mode legal, evolution block sane',
     ['every', 'manual', 'threshold'].includes(cj.mode) && ['observe', 'suggest', 'evolve'].includes(cj.evolution.default));
   check('static: config.example.json stability block sane', cj.stability.streak >= 1 && cj.stability.sample >= 1);
+  // Bilingual README sync: the zh-CN version must exist, cross-link, and
+  // agree with the English one on the load-bearing facts.
+  const zhPath = path.join(repo, 'README.zh-CN.md');
+  if (fs.existsSync(zhPath)) {
+    const en = fs.readFileSync(path.join(repo, 'README.md'), 'utf8');
+    const zh = fs.readFileSync(zhPath, 'utf8');
+    // NOTE: no selftest count here - it changes with every added check.
+    const facts = ['npx lamarck-skill', '4/5', '0/2', 'evolve / suggest / observe'];
+    check('static: bilingual READMEs agree on key facts and cross-link',
+      facts.every(f => en.includes(f) && zh.includes(f)) && en.includes('README.zh-CN.md') && zh.includes('README.md'));
+  } else {
+    check('static: bilingual READMEs agree on key facts and cross-link', false);
+  }
   let localOk = true;
   if (fs.existsSync(path.join(repo, 'config.json'))) {
     try { localOk = ['every', 'manual', 'threshold'].includes(JSON.parse(fs.readFileSync(path.join(repo, 'config.json'), 'utf8')).mode); }
