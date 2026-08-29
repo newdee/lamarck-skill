@@ -161,6 +161,10 @@ try {
   check('static: config.example.json valid, mode legal, evolution block sane',
     ['every', 'manual', 'threshold'].includes(cj.mode) && ['observe', 'suggest', 'evolve'].includes(cj.evolution.default));
   check('static: config.example.json stability block sane', cj.stability.streak >= 1 && cj.stability.sample >= 1);
+  check('static: config.example.json auto tier is an array (trust ladder)', Array.isArray(cj.evolution.auto));
+  const skillMd = fs.readFileSync(path.join(repo, 'SKILL.md'), 'utf8');
+  check('static: auto tier documented with its forbidden zone (lamarck self, Iron Rules, plugins)',
+    skillMd.includes('evolution.auto') && /永不受 auto 覆盖|永不适用 auto/.test(skillMd) && skillMd.includes('放行条件'));
   // Bilingual README sync: the zh-CN version must exist, cross-link, and
   // agree with the English one on the load-bearing facts.
   const zhPath = path.join(repo, 'README.zh-CN.md');
@@ -168,9 +172,11 @@ try {
     const en = fs.readFileSync(path.join(repo, 'README.md'), 'utf8');
     const zh = fs.readFileSync(zhPath, 'utf8');
     // NOTE: no selftest count here - it changes with every added check.
-    const facts = ['npx lamarck-skill', '4/5', '0/2', 'evolve / suggest / observe'];
+    // Whitespace is collapsed first so hard-wrapped lines still match.
+    const facts = ['npx lamarck-skill', '4/5', '0/2', 'auto / evolve / suggest / observe'];
+    const norm = (s) => s.replace(/\s+/g, ' ');
     check('static: bilingual READMEs agree on key facts and cross-link',
-      facts.every(f => en.includes(f) && zh.includes(f)) && en.includes('README.zh-CN.md') && zh.includes('README.md'));
+      facts.every(f => norm(en).includes(f) && norm(zh).includes(f)) && en.includes('README.zh-CN.md') && zh.includes('README.md'));
   } else {
     check('static: bilingual READMEs agree on key facts and cross-link', false);
   }

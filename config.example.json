@@ -3,6 +3,7 @@
   "threshold": 5,
   "evolution": {
     "default": "observe",
+    "auto": [],
     "evolve": ["lamarck"],
     "suggest": []
   },

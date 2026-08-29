@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.5"
+  version: "5.6"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, Node.js 18+, and git; cross-platform (Windows / macOS / Linux)
 ---
 
@@ -42,6 +42,12 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
 落入 `default`,默认 `observe`)。**config.json 缺失时:一律 `observe`,提示用户
 创建**:
 
+- **auto**(自治级,显式列入 `evolution.auto` 才生效):过门提案**免事前三选一
+  直接施工**,但 replay 重放从事后验证升为**放行条件**——当场不过立即自动回滚
+  并入 rejected;每笔编辑在下次输出中显式报告,并照常入 CHANGELOG、ledger、
+  git,事后 `git revert` 一步可撤。**禁区:lamarck 自身、Iron Rules、插件文件
+  永不受 auto 覆盖,必须用户批准。** 自治是挣来的:建议只把经历过多次
+  evolve 级成功编辑的 skill 升到这一级。
 - **evolve**(白名单,当前:seo-cron-ops、lamarck):过门提案可走用户三选一直接施工。
 - **suggest**:过门提案只写 `suggestions/<skill>.md`,永不直接编辑。
 - **observe**(默认):只记账、沉淀 learnings、长 rubric,**不产生任何提案**;
@@ -100,7 +106,10 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
 - **不在拒绝缓冲**:`data/rejected.md` 否过的同类提案不得重提,除非有新类型证据。
 - **未被冻结**:该 skill 上一次编辑的验证 rollout 尚未完成时,禁止新提案。
 
-门过了 → **用户在环**:用 AskUserQuestion 给用户选(附证据摘要与 diff 要点):
+门过了 → 先看等级:**auto 级 skill 跳过三选一直接施工**,但必须当场通过
+全场景 replay 才算落地(不过即自动回滚,提案入 rejected),施工与验证结果
+在下次输出中显式报告。其余等级 → **用户在环**:用 AskUserQuestion 给用户选
+(附证据摘要与 diff 要点):
 
 1. **现在就改**(推荐时说明理由)
 2. **只留提案** → 写 `suggestions/<skill>.md`,不动文件
@@ -153,7 +162,10 @@ better / tie → 保留,解除冻结。
 
 1. 单次观察永不触发编辑,只记账与沉淀(rubric 入册除外,n=1 可)。
 2. 任何 skill 编辑施工前必须让用户选择(AskUserQuestion);非交互会话只落提案。
-   例外:恢复用户已批准基线的自动回滚(强证据触发),须落账并告知。
+   例外一:恢复用户已批准基线的自动回滚(强证据触发),须落账并告知。
+   例外二(2026-08-29 经用户批准):`evolution.auto` 显式列入的 skill 免事前
+   三选一,但 replay 放行条件与事后显式报告不可免;lamarck 自身、Iron Rules、
+   插件永不适用 auto。
 3. 每次编辑必须可回滚(git commit 或 `.bak`),且写入 CHANGELOG。回滚本身同样记 CHANGELOG。
 4. 永不编辑插件 / marketplace / synced skill 的文件。
 5. 永不删除 ledger 历史、learnings 既有观察与 rubric attic。
@@ -176,8 +188,9 @@ better / tie → 保留,解除冻结。
 - `stats` — 只看账:各 skill 调用频次、corrected 率、gap 排行。
 - `mode <every|manual|threshold> [N]` — 改写 `config.json` 切换触发模式(threshold 可带
   阈值 N,缺省 5),改完复述当前配置。config.json 缺失或损坏时脚本回退 threshold/5。
-- `evolve list` — 列出全部 skill 及其进化等级与账面健康度;`evolve add <skill> [evolve|suggest]` /
-  `evolve remove <skill>` — 改写 `config.json` 的 evolution 块,改完复述。
+- `evolve list` — 列出全部 skill 及其进化等级与账面健康度;`evolve add <skill> [evolve|suggest|auto]` /
+  `evolve remove <skill>` — 改写 `config.json` 的 evolution 块,改完复述
+  (auto 禁区:lamarck 自身与插件即使写入也不生效)。
 - `report [skill]` — 进化叙事卡:各版本(`ver`)健康度趋势、已保留/已回滚的编辑、
   rubric 增删、replay 通过率;不带参数出全局摘要。
 

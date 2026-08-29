@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-49%2F49-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-51%2F51-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for Claude Code skills.** Not a
 one-shot optimizer for a hand-picked skill: install once, and every skill
@@ -52,8 +52,13 @@ to a 3-judge majority only on close calls) and human-in-the-loop checkpoints.
    reject. Replay validation immediately, paired blind judging on the next
    real invocation, per-version health comparison as the statistical backstop.
    Any degradation → rollback proposal.
-4. **Whitelist**: `config.json` grades each skill evolve / suggest / observe
-   (default observe; plugins capped at suggest). New skills inherit the default.
+4. **Trust ladder**: `config.json` grades each skill auto / evolve / suggest /
+   observe (default observe; plugins capped at suggest; new skills inherit
+   the default). `auto` is earned autonomy: gate-passing edits land without
+   asking — replay validation becomes the landing condition (fail = instant
+   rollback), every edit is reported, ledgered and one-revert reversible.
+   lamarck itself, the Iron Rules and plugins always require explicit
+   approval, whatever the config says.
 5. **Convergence**: not every iteration pays. After a clean streak (default
    10) a skill goes *stable* — evaluations drop to spot-checks (1 in 5) and
    one-line `stable-skip` records; any user correction, genome change or
@@ -70,7 +75,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **49/49**: hook
+   sandbox, zero contact with live telemetry. Currently **51/51**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries. CI-able (exit code gated).
@@ -160,6 +165,10 @@ your skills are healthy, not that lamarck is idle — check
 - **Which skills can be edited?** Only whitelisted ones
   (`/lamarck evolve add <skill>`). Default is observe: evidence
   accumulates, nothing is touched. Plugins are never edited.
+- **Can it evolve without asking me every time?** Yes — promote a
+  battle-tested skill to `auto` (`/lamarck evolve add <skill> auto`):
+  gate-passing edits land without prompting, replay-gated, reported
+  afterwards, one `git revert` away. lamarck itself never runs on auto.
 - **When should I run `/lamarck` manually?** To process backlog from other
   sessions, `audit <skill>` for a full evidence review, `stats` for the
   scoreboard, or `report` for the evolution narrative.
