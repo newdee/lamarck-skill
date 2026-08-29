@@ -7,13 +7,11 @@
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![selftest](https://img.shields.io/badge/selftest-49%2F49-brightgreen)](scripts/selftest.js)
 
-**装一次,你的全部 skill 进入进化观察。** lamarck 被动观察每个已装 skill
-的每次真实调用(几百个也一样),逐 skill 积累证据,在证据门约束下推动进化
-——任何编辑都只在你批准后落地。它同时在运行中按同一套规则进化自己。使用中
-获得的性状写回 skill 文件;长期无用的部分废退(修剪)。每个不可逆动作都经
-用户批准、落账、可回滚:**治理是全量进化敢做的前提**。与
-[darwin-skill](https://github.com/alchaincyf/darwin-skill)(一次优化一个
-手工圈选的 skill)互为对照。
+**生产环境的 skill 自进化系统。** 不是给某一个手工圈选的 skill 做一次性
+优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
+满足条件时进化——任何编辑都只在你批准后落地。lamarck 同时在运行中按同一套
+规则进化自己。使用中获得的性状写回 skill 文件;长期无用的部分废退(修剪)。
+每个不可逆动作都经用户批准、落账、可回滚:**治理是全量进化敢做的前提**。
 
 ```
 npx lamarck-skill
