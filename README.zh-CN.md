@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-46%2F46-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-47%2F47-brightgreen)](scripts/selftest.js)
 
 **装一次,你的全部 skill 进入进化观察。** lamarck 被动观察每个已装 skill
 的每次真实调用(几百个也一样),逐 skill 积累证据,在证据门约束下推动进化
@@ -61,7 +61,7 @@ npx lamarck-skill
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **46/46**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **47/47**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
    接受的编辑都有前后窗口,以**用户纠正率**度量——ground truth 来自用户

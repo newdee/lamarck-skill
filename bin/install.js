@@ -22,7 +22,7 @@ const src = path.resolve(__dirname, '..');
 
 const CORE = [
   'SKILL.md', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'LICENSE',
-  'config.example.json',
+  'config.example.json', 'gitignore.template',
   'scripts/posttool-skill.js', 'scripts/stop-evaluate.js', 'scripts/selftest.js',
   'data/rubrics/README.md'
 ];
@@ -62,6 +62,31 @@ function install() {
     console.log('created config.json from config.example.json');
   } else {
     console.log('kept    existing config.json');
+  }
+
+  // 2b. version control: npm never ships .gitignore, so it travels as
+  // gitignore.template. Materialize it and git-init the skill directory so
+  // installed users get the same git-versioned rubrics and rollback the
+  // repo README promises. Best-effort: no git, no problem (.bak fallback).
+  const gi = path.join(target, '.gitignore');
+  const tpl = path.join(src, 'gitignore.template');
+  if (fs.existsSync(tpl) && !fs.existsSync(gi)) {
+    fs.copyFileSync(tpl, gi);
+    console.log('created .gitignore from template');
+  }
+  if (!fs.existsSync(path.join(target, '.git'))) {
+    const init = spawnSync('git', ['-C', target, 'init', '-b', 'main']);
+    if (init.status === 0) {
+      spawnSync('git', ['-C', target, 'add', '-A']);
+      const ci = spawnSync('git', ['-C', target,
+        '-c', 'user.name=lamarck-install', '-c', 'user.email=lamarck@localhost',
+        'commit', '-m', 'lamarck install baseline']);
+      console.log(ci.status === 0
+        ? 'git     initialized with an install-baseline commit'
+        : 'git     initialized (baseline commit skipped)');
+    } else {
+      console.log('git     not available - rollback falls back to .bak files');
+    }
   }
 
   // 3. wire hooks (add-only, idempotent)

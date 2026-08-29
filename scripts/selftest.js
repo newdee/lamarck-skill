@@ -180,6 +180,8 @@ try {
     catch { localOk = false; }
   }
   check('static: local config.json absent or legal', localOk);
+  check('static: gitignore.template matches .gitignore (no drift)',
+    fs.readFileSync(path.join(repo, 'gitignore.template'), 'utf8') === fs.readFileSync(path.join(repo, '.gitignore'), 'utf8'));
   check('static: both hooks reference the diagnostic hook-errors.log',
     fs.readFileSync(path.join(repo, 'scripts', 'posttool-skill.js'), 'utf8').includes('hook-errors.log') &&
     fs.readFileSync(path.join(repo, 'scripts', 'stop-evaluate.js'), 'utf8').includes('hook-errors.log'));

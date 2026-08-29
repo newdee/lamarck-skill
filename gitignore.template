@@ -1,0 +1,14 @@
+# Personal telemetry — never published. Append-only by Iron Rules, no rollback need.
+data/*
+# Rubrics ARE versioned: the per-skill scoring standards evolve with the skills
+# and their history (crystallize / deprecate) belongs in git.
+!data/rubrics/
+# Local state: personal trigger mode and evolution whitelist.
+# Copy config.example.json to config.json to customize.
+config.json
+# Runtime kill switch and single-generation backups
+off
+*.bak
+# Publish/build artifacts
+*.tgz
+node_modules/
