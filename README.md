@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-47%2F47-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-48%2F48-brightgreen)](scripts/selftest.js)
 
 **Install once — every skill you have is under evolution watch.** lamarck
 passively observes every real invocation of every installed skill (hundreds,
@@ -71,7 +71,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **47/47**: hook
+   sandbox, zero contact with live telemetry. Currently **48/48**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries. CI-able (exit code gated).
@@ -81,12 +81,12 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
    from user behavior, not model self-scoring. Replay validation adds a
    controlled comparison: identical real inputs, old vs new genome. All
    verify verdicts are ledgered; `/lamarck report` aggregates them.
-3. **mutation-bench** (`bench/`, protocol preregistered before execution):
-   controlled degradations with public ground truth, blind A/B judging.
-   run-001: **4/5 known-degraded variants flagged, 0/2 known-improved
-   variants falsely rejected** (single judge, majority-of-3-cases; the miss
-   is analyzed, not hidden — see `bench/README.md`). Raw verdicts committed
-   verbatim.
+3. **mutation-bench** ([bench/ on GitHub](https://github.com/newdee/lamarck-skill/tree/main/bench),
+   protocol preregistered before execution): controlled degradations with
+   public ground truth, blind A/B judging. run-001: **4/5 known-degraded
+   variants flagged, 0/2 known-improved variants falsely rejected** (single
+   judge, majority-of-3-cases; the miss is analyzed, not hidden). Raw
+   verdicts committed verbatim.
 4. **Self-application** — lamarck evolves under its own rules: every change
    to itself is evidence-triggered, bounded, user-approved and verified.
    [CHANGELOG.md](CHANGELOG.md) is the auditable history — each version

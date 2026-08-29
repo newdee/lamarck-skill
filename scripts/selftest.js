@@ -180,6 +180,24 @@ try {
     catch { localOk = false; }
   }
   check('static: local config.json absent or legal', localOk);
+  // Every relative markdown link in the READMEs must point at a file that
+  // ships in the npm tarball - otherwise installed copies get dead links
+  // (this is how the bench/ dangling reference was caught).
+  const shipped = new Set(['README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'LICENSE',
+    'SKILL.md', 'config.example.json', 'gitignore.template', 'package.json',
+    'bin/install.js', 'scripts/posttool-skill.js', 'scripts/stop-evaluate.js',
+    'scripts/selftest.js', 'data/rubrics/README.md']);
+  const badLinks = [];
+  for (const rf of ['README.md', 'README.zh-CN.md']) {
+    const body = fs.readFileSync(path.join(repo, rf), 'utf8');
+    for (const mm of body.matchAll(/\]\(([^)]+)\)/g)) {
+      const t = mm[1].split('#')[0].trim();
+      if (!t || t.startsWith('http')) continue;
+      if (!shipped.has(t.replace(/^\.\//, ''))) badLinks.push(`${rf} -> ${t}`);
+    }
+  }
+  check('static: README relative links all resolve inside the tarball', badLinks.length === 0);
+  if (badLinks.length) badLinks.forEach(b => console.log(`        dead: ${b}`));
   check('static: gitignore.template matches .gitignore (no drift)',
     fs.readFileSync(path.join(repo, 'gitignore.template'), 'utf8') === fs.readFileSync(path.join(repo, '.gitignore'), 'utf8'));
   check('static: both hooks reference the diagnostic hook-errors.log',

@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-47%2F47-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-48%2F48-brightgreen)](scripts/selftest.js)
 
 **装一次,你的全部 skill 进入进化观察。** lamarck 被动观察每个已装 skill
 的每次真实调用(几百个也一样),逐 skill 积累证据,在证据门约束下推动进化
@@ -61,16 +61,16 @@ npx lamarck-skill
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **47/47**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **48/48**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
    接受的编辑都有前后窗口,以**用户纠正率**度量——ground truth 来自用户
    行为,不是模型自评。replay 验证提供受控对照:同一真实输入、新旧基因。
    全部 verify 结论落账;`/lamarck report` 汇总。
-3. **mutation-bench**(`bench/`,协议先预注册再执行):已知真值的受控劣化
-   + 盲评 A/B。run-001:**已知劣化变体拦截 4/5,已知改善变体误拦 0/2**
-   (单评委、三案多数;漏网的那个有分析,不藏——见 `bench/README.md`)。
-   原始 verdict 逐字入库。
+3. **mutation-bench**([bench/ 在 GitHub](https://github.com/newdee/lamarck-skill/tree/main/bench),
+   协议先预注册再执行):已知真值的受控劣化 + 盲评 A/B。run-001:**已知劣化
+   变体拦截 4/5,已知改善变体误拦 0/2**(单评委、三案多数;漏网的那个有公开
+   分析,不藏)。原始 verdict 逐字入库。
 4. **自应用** —— lamarck 按自己的规则进化:对自身的每次改动都有触发证据、
    有界 diff、用户批准与验证结果。[CHANGELOG.md](CHANGELOG.md) 就是可审计的
    历史,含四个在其记录的 review 纪律下抓出并修复的缺陷。不打分,留痕。
