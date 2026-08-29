@@ -47,6 +47,18 @@ function entryIsOurs(entry, script) {
 }
 
 function install() {
+  // 0. upgrade safety: if the target is already a git repo (it is, since
+  // v5.4.1 installs git-init), snapshot local state BEFORE overwriting -
+  // locally-evolved skill files must never be destroyed by an upgrade.
+  const isUpgrade = fs.existsSync(path.join(target, '.git'));
+  if (isUpgrade) {
+    spawnSync('git', ['-C', target, 'add', '-A']);
+    const snap = spawnSync('git', ['-C', target,
+      '-c', 'user.name=lamarck-install', '-c', 'user.email=lamarck@localhost',
+      'commit', '-m', 'pre-upgrade snapshot']);
+    if (snap.status === 0) console.log('git     pre-upgrade snapshot committed');
+  }
+
   // 1. copy core files (upgrades overwrite code; data/ and config.json are never touched)
   for (const rel of CORE) {
     const to = path.join(target, ...rel.split('/'));
@@ -87,6 +99,13 @@ function install() {
     } else {
       console.log('git     not available - rollback falls back to .bak files');
     }
+  } else if (isUpgrade) {
+    // record the upgrade itself so the local history reads snapshot -> upgrade
+    spawnSync('git', ['-C', target, 'add', '-A']);
+    const up = spawnSync('git', ['-C', target,
+      '-c', 'user.name=lamarck-install', '-c', 'user.email=lamarck@localhost',
+      'commit', '-m', 'lamarck upgrade']);
+    if (up.status === 0) console.log('git     upgrade committed');
   }
 
   // 3. wire hooks (add-only, idempotent)

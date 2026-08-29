@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-48%2F48-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-49%2F49-brightgreen)](scripts/selftest.js)
 
 **Install once — every skill you have is under evolution watch.** lamarck
 passively observes every real invocation of every installed skill (hundreds,
@@ -71,7 +71,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **48/48**: hook
+   sandbox, zero contact with live telemetry. Currently **49/49**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries. CI-able (exit code gated).

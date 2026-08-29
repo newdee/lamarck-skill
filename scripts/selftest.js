@@ -180,24 +180,50 @@ try {
     catch { localOk = false; }
   }
   check('static: local config.json absent or legal', localOk);
-  // Every relative markdown link in the READMEs must point at a file that
-  // ships in the npm tarball - otherwise installed copies get dead links
-  // (this is how the bench/ dangling reference was caught).
-  const shipped = new Set(['README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'LICENSE',
-    'SKILL.md', 'config.example.json', 'gitignore.template', 'package.json',
-    'bin/install.js', 'scripts/posttool-skill.js', 'scripts/stop-evaluate.js',
-    'scripts/selftest.js', 'data/rubrics/README.md']);
-  const badLinks = [];
-  for (const rf of ['README.md', 'README.zh-CN.md']) {
-    const body = fs.readFileSync(path.join(repo, rf), 'utf8');
-    for (const mm of body.matchAll(/\]\(([^)]+)\)/g)) {
+  // Tarball invariants run only in the dev checkout (installed copies ship
+  // neither package.json nor bin/). There, links are checked against disk.
+  const pjPath = path.join(repo, 'package.json');
+  const mdLinks = (rf) => {
+    const out = [];
+    for (const mm of fs.readFileSync(path.join(repo, rf), 'utf8').matchAll(/\]\(([^)]+)\)/g)) {
       const t = mm[1].split('#')[0].trim();
-      if (!t || t.startsWith('http')) continue;
-      if (!shipped.has(t.replace(/^\.\//, ''))) badLinks.push(`${rf} -> ${t}`);
+      if (t && !t.startsWith('http')) out.push(t.replace(/^\.\//, ''));
     }
+    return out;
+  };
+  if (fs.existsSync(pjPath)) {
+    // The tarball file set is DERIVED from package.json (single source of
+    // truth, no hand-maintained copy to drift), plus npm's auto-includes.
+    const pjFiles = JSON.parse(fs.readFileSync(pjPath, 'utf8')).files || [];
+    const shipped = new Set(['README.md', 'LICENSE', 'package.json']);
+    for (const f of pjFiles) {
+      if (f.endsWith('/')) { for (const e of fs.readdirSync(path.join(repo, f))) shipped.add(f + e); }
+      else shipped.add(f);
+    }
+    // Invariant 1: everything the installer copies must actually ship
+    // (the v5.4.1 missing-template bug, closed as a class).
+    const coreSrc = fs.readFileSync(path.join(repo, 'bin', 'install.js'), 'utf8');
+    const coreItems = [...coreSrc.match(/const CORE = \[([\s\S]*?)\]/)[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
+    const unshipped = coreItems.filter(c => !shipped.has(c));
+    check('static: installer CORE list ships entirely in the tarball', unshipped.length === 0);
+    if (unshipped.length) unshipped.forEach(c => console.log(`        missing: ${c}`));
+    // Invariant 2: every relative markdown link in every shipped .md must
+    // resolve inside the tarball - installed copies get no dead links.
+    const badLinks = [];
+    for (const rf of [...shipped].filter(f => f.endsWith('.md'))) {
+      for (const t of mdLinks(rf)) if (!shipped.has(t)) badLinks.push(`${rf} -> ${t}`);
+    }
+    check('static: all shipped-markdown relative links resolve inside the tarball', badLinks.length === 0);
+    if (badLinks.length) badLinks.forEach(b => console.log(`        dead: ${b}`));
+  } else {
+    console.log('SKIP  tarball invariants (installed copy - no package.json)');
+    const mds = ['README.md', 'README.zh-CN.md', 'SKILL.md', 'CHANGELOG.md', 'data/rubrics/README.md']
+      .filter(f => fs.existsSync(path.join(repo, f)));
+    const dead = [];
+    for (const rf of mds) for (const t of mdLinks(rf)) if (!fs.existsSync(path.join(repo, t))) dead.push(`${rf} -> ${t}`);
+    check('static: markdown relative links resolve on disk', dead.length === 0);
+    if (dead.length) dead.forEach(b => console.log(`        dead: ${b}`));
   }
-  check('static: README relative links all resolve inside the tarball', badLinks.length === 0);
-  if (badLinks.length) badLinks.forEach(b => console.log(`        dead: ${b}`));
   check('static: gitignore.template matches .gitignore (no drift)',
     fs.readFileSync(path.join(repo, 'gitignore.template'), 'utf8') === fs.readFileSync(path.join(repo, '.gitignore'), 'utf8'));
   check('static: both hooks reference the diagnostic hook-errors.log',
