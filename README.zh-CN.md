@@ -5,13 +5,14 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-51%2F51-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-52%2F52-brightgreen)](scripts/selftest.js)
 
 **生产环境的 skill 自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
-满足条件时进化——任何编辑都只在你批准后落地。lamarck 同时在运行中按同一套
-规则进化自己。使用中获得的性状写回 skill 文件;长期无用的部分废退(修剪)。
-每个不可逆动作都经用户批准、落账、可回滚:**治理是全量进化敢做的前提**。
+满足条件时进化——编辑经你批准落地,或对你显式升到 auto 的 skill 由 replay
+把关、事后报告。lamarck 同时在运行中按同一套规则进化自己(自身永不 auto)。
+使用中获得的性状写回 skill 文件;长期无用的部分废退(修剪)。每个不可逆动作
+都经用户授权、落账、可回滚:**治理是全量进化敢做的前提**。
 
 ```
 npx lamarck-skill
@@ -62,7 +63,7 @@ npx lamarck-skill
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **51/51**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **52/52**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
    接受的编辑都有前后窗口,以**用户纠正率**度量——ground truth 来自用户
@@ -137,8 +138,8 @@ hook 接在 `~/.claude/settings.json`(PostToolUse 匹配 `Skill`,Stop)。
 | | lamarck | self-improving-skills | task-observer |
 |---|---|---|---|
 | 触发 | **被评估的结果**:gap 分类、用户纠正作 ground truth | 活动量:距上次蒸馏 N 次工具调用/文件改动 | 手动会话复盘 |
-| 覆盖面 | **全部已装 skill,被动观察**(插件上限 suggest);逐 skill evolve/suggest/observe 分级 | 以它自己蒸馏出的 skill 为主 | 你手动复盘到哪算哪 |
-| 治理 | 证据门(≥2 次独立同类 gap)+ 每笔编辑用户批准 | 后台自动改,写完才校验 | 只出建议,不动手 |
+| 覆盖面 | **全部已装 skill,被动观察**(插件上限 suggest);逐 skill auto/evolve/suggest/observe 分级 | 以它自己蒸馏出的 skill 为主 | 你手动复盘到哪算哪 |
+| 治理 | 证据门(≥2 次独立同类 gap)+ 每笔编辑用户批准,或逐 skill 挣得的 auto(replay 把关落地) | 后台自动改,写完才校验 | 只出建议,不动手 |
 | 验证 | **语义级**:真实痕迹 replay 新旧对照、成对盲评、版本分窗健康度 | 语法级:SKILL.md 写坏才回滚 | 无 |
 | 修剪 | 引用型提案(条目 90 天零引用) | 时间型归档(30/90 天没用) | 无 |
 | 效果证明 | 预注册基准、跨平台 CI 自测、留痕的自应用 | — | — |

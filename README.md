@@ -5,17 +5,18 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-51%2F51-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-52%2F52-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for Claude Code skills.** Not a
 one-shot optimizer for a hand-picked skill: install once, and every skill
 you have (hundreds, if you have them) keeps accumulating evidence from its
-real invocations — and evolves when the evidence gate opens. Edits only
-ever land with your approval. lamarck evolves itself by the same rules
-while it runs. Traits acquired through use are inherited back into the
-skill file; parts that go unused atrophy. Every irreversible step is
-user-approved, ledgered, and reversible: the governance is what makes
-population-wide evolution safe.
+real invocations — and evolves when the evidence gate opens. Edits land
+with your approval, or — for skills you explicitly promote to auto —
+replay-gated and reported after the fact. lamarck evolves itself by the
+same rules while it runs (never on auto). Traits acquired through use are
+inherited back into the skill file; parts that go unused atrophy. Every
+irreversible step is user-authorized, ledgered, and reversible: the
+governance is what makes population-wide evolution safe.
 
 ```
 npx lamarck-skill
@@ -75,7 +76,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **51/51**: hook
+   sandbox, zero contact with live telemetry. Currently **52/52**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries. CI-able (exit code gated).
@@ -193,8 +194,8 @@ for reference):
 | | lamarck | self-improving-skills | task-observer |
 |---|---|---|---|
 | Trigger | **evaluated outcomes**: gap taxonomy, user corrections as ground truth | activity volume: N tool calls / file edits since last distillation | manual session review |
-| Scope | **every installed skill, passively** (plugins capped at suggest); per-skill evolve/suggest/observe levels | centers on its own distilled skills | whatever you review by hand |
-| Governance | evidence gate (>=2 independent same-type gaps) + user approval per edit | automatic background edits, validated after writing | recommendations only, no edits |
+| Scope | **every installed skill, passively** (plugins capped at suggest); per-skill auto/evolve/suggest/observe levels | centers on its own distilled skills | whatever you review by hand |
+| Governance | evidence gate (>=2 independent same-type gaps) + user approval per edit, or earned per-skill auto with replay-gated landing | automatic background edits, validated after writing | recommendations only, no edits |
 | Verification | **semantic**: replay real traces old-vs-new, paired blind judging, version-window health | syntactic: rollback on malformed SKILL.md | none |
 | Pruning | citation-based proposals (90-day zero-cite entries) | time-based archiving (30/90 days unused) | none |
 | Proof | preregistered bench, cross-platform CI selftest, audited self-application | - | - |

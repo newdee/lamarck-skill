@@ -1,6 +1,6 @@
 ---
 name: lamarck
-description: Lamarckian skill evolution - continuously monitors every real skill invocation, drives governed evolution of the observed skills, and evolves itself by the same rules while running. A PostToolUse hook logs each invocation (stamped with the target skill's genome hash for per-version regression detection); a Stop hook runs a light evaluation loop whose protocol is embedded in the hook reason, so this SKILL.md is not reloaded every turn. Per-skill dynamic rubrics (git-versioned) define what "good" means for each skill; an evolution whitelist in config.json controls which skills may be edited (evolve/suggest/observe, default observe). Read this file only when escalating - when a skill accumulates enough same-type evidence to propose an edit, or on manual invocation. Use when the stop hook says to escalate, or when asked to review skill performance, optimize or improve a skill, audit the skill ledger, distill skill learnings, manage the evolution whitelist, or switch the lamarck trigger mode.
+description: Lamarckian skill evolution - continuously monitors every real skill invocation, drives governed evolution of the observed skills, and evolves itself by the same rules while running. A PostToolUse hook logs each invocation (stamped with the target skill's genome hash for per-version regression detection); a Stop hook runs a light evaluation loop whose protocol is embedded in the hook reason, so this SKILL.md is not reloaded every turn. Per-skill dynamic rubrics (git-versioned) define what "good" means for each skill; a trust ladder in config.json controls which skills may be edited (auto/evolve/suggest/observe, default observe). Read this file only when escalating - when a skill accumulates enough same-type evidence to propose an edit, or on manual invocation. Use when the stop hook says to escalate, or when asked to review skill performance, optimize or improve a skill, audit the skill ledger, distill skill learnings, manage the evolution whitelist, or switch the lamarck trigger mode.
 license: MIT
 metadata:
   author: kian
@@ -108,8 +108,9 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
 
 门过了 → 先看等级:**auto 级 skill 跳过三选一直接施工**,但必须当场通过
 全场景 replay 才算落地(不过即自动回滚,提案入 rejected),施工与验证结果
-在下次输出中显式报告。其余等级 → **用户在环**:用 AskUserQuestion 给用户选
-(附证据摘要与 diff 要点):
+在下次输出中显式报告。**该 skill 的 replay 语料为空时,auto 降级为三选一**
+——没有放行条件就没有放行,零验证落地是禁止的。其余等级 → **用户在环**:
+用 AskUserQuestion 给用户选(附证据摘要与 diff 要点):
 
 1. **现在就改**(推荐时说明理由)
 2. **只留提案** → 写 `suggestions/<skill>.md`,不动文件
@@ -164,8 +165,8 @@ better / tie → 保留,解除冻结。
 2. 任何 skill 编辑施工前必须让用户选择(AskUserQuestion);非交互会话只落提案。
    例外一:恢复用户已批准基线的自动回滚(强证据触发),须落账并告知。
    例外二(2026-08-29 经用户批准):`evolution.auto` 显式列入的 skill 免事前
-   三选一,但 replay 放行条件与事后显式报告不可免;lamarck 自身、Iron Rules、
-   插件永不适用 auto。
+   三选一,但 replay 放行条件与事后显式报告不可免;replay 语料为空时例外二
+   不适用(降回三选一);lamarck 自身、Iron Rules、插件永不适用 auto。
 3. 每次编辑必须可回滚(git commit 或 `.bak`),且写入 CHANGELOG。回滚本身同样记 CHANGELOG。
 4. 永不编辑插件 / marketplace / synced skill 的文件。
 5. 永不删除 ledger 历史、learnings 既有观察与 rubric attic。

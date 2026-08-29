@@ -165,6 +165,8 @@ try {
   const skillMd = fs.readFileSync(path.join(repo, 'SKILL.md'), 'utf8');
   check('static: auto tier documented with its forbidden zone (lamarck self, Iron Rules, plugins)',
     skillMd.includes('evolution.auto') && /永不受 auto 覆盖|永不适用 auto/.test(skillMd) && skillMd.includes('放行条件'));
+  check('static: empty replay corpus demotes auto (no zero-validation landings)',
+    skillMd.includes('replay 语料为空') && skillMd.includes('降级为三选一'));
   // Bilingual README sync: the zh-CN version must exist, cross-link, and
   // agree with the English one on the load-bearing facts.
   const zhPath = path.join(repo, 'README.zh-CN.md');
