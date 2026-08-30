@@ -111,8 +111,11 @@ try {
   // re-reading right before the write keeps a concurrent session's entry alive.
   check('stop: pending cleanup re-reads before rewriting (concurrent-append safety)',
     o.includes('re-read immediately before writing') && o.includes('must survive'));
-  check('stop: reason sanitizes colons in per-skill filenames (plugin names on Windows)',
-    o.includes("':' replaced by '__'") && o.includes('caveman__caveman-help') && o.includes('keep the real name'));
+  // suggestions/ matters most here: plugins are capped at the suggest tier, so
+  // the colon-bearing names are exactly the ones that land in that directory.
+  check('stop: reason sanitizes colons in every per-skill filename, suggestions included',
+    o.includes("':' replaced by '__'") && o.includes('caveman__caveman-help') &&
+    o.includes('suggestions alike') && o.includes('keep the real name'));
   const o2 = stopCall('{"session_id":"s2","stop_hook_active":false}');
   check('stop: output byte-identical across runs', o === o2);
   check('stop: other session silent', stopCall('{"session_id":"other","stop_hook_active":false}') === '');
