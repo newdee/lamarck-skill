@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-63%2F63-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-64%2F64-brightgreen)](scripts/selftest.js)
 
 **生产环境的 skill 自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -65,7 +65,7 @@ npx lamarck-skill
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **63/63**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **64/64**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被

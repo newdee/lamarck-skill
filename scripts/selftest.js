@@ -271,8 +271,20 @@ try {
     check('static: markdown relative links resolve on disk', dead.length === 0);
     if (dead.length) dead.forEach(b => console.log(`        dead: ${b}`));
   }
-  check('static: gitignore.template matches .gitignore (no drift)',
-    fs.readFileSync(path.join(repo, 'gitignore.template'), 'utf8') === fs.readFileSync(path.join(repo, '.gitignore'), 'utf8'));
+  // npm never packs a .gitignore, so an unpacked tarball has only the
+  // template - the installer writes the real file from it. Assert the
+  // template always, compare only where both exist; a missing optional file
+  // must not abort the suite.
+  const tpl = path.join(repo, 'gitignore.template');
+  const gi = path.join(repo, '.gitignore');
+  check('static: gitignore.template present and non-empty',
+    fs.existsSync(tpl) && fs.readFileSync(tpl, 'utf8').trim().length > 0);
+  if (fs.existsSync(gi)) {
+    check('static: gitignore.template matches .gitignore (no drift)',
+      fs.readFileSync(tpl, 'utf8') === fs.readFileSync(gi, 'utf8'));
+  } else {
+    console.log('SKIP  gitignore drift check (unpacked tarball has no .gitignore - the installer writes it)');
+  }
   check('static: both hooks reference the diagnostic hook-errors.log',
     fs.readFileSync(path.join(repo, 'scripts', 'posttool-skill.js'), 'utf8').includes('hook-errors.log') &&
     fs.readFileSync(path.join(repo, 'scripts', 'stop-evaluate.js'), 'utf8').includes('hook-errors.log'));
