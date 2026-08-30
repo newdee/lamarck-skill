@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-52%2F52-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-63%2F63-brightgreen)](scripts/selftest.js)
 
 **生产环境的 skill 自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -38,9 +38,11 @@ npx lamarck-skill
 1. **记账**(PostToolUse hook):每次 skill 调用 → `data/pending.jsonl`,
    附目标 skill 的内容哈希(`ver`),供按版本分窗做退化检测。
 2. **轻循环**(Stop hook):迷你评估协议内嵌在 hook reason 里——每回合不重载
-   SKILL.md。四维 verdict 落 `data/ledger.jsonl`;经验沉淀进 `data/learnings/`;
-   corrected/failed 的调用蒸馏为 `data/replays/` 回归用例。触发时机可配:
-   每回合 / 仅手动 / 阈值批量(默认 5)。
+   SKILL.md。四维 verdict 对照该 skill rubric 中场景匹配的条目判定后落
+   `data/ledger.jsonl`;用户纠正 n=1 结晶为一条带出处的 rubric 条目;经验沉淀
+   进 `data/learnings/`;回归用例进 `data/replays/`——既收割失败,也收割语料
+   尚未覆盖其场景的 clean 调用。触发时机可配:每回合 / 仅手动 / 阈值批量
+   (默认 5)。
 3. **进化**(门控):≥2 次独立同类 gap → 综合全部证据生成有界编辑提案 →
    用户三选一(现在就改 / 只留提案 / 否决)。编辑后先 replay 重放,下次真实
    调用做成对盲评,版本分窗健康度做统计兜底。任何退化 → 回滚提案。
@@ -63,8 +65,9 @@ npx lamarck-skill
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **52/52**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
-   防死循环、字节级可复现输出、gitignore 边界。CI 可用(exit code 门控)。
+   遥测。当前 **63/63**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
+   活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
    接受的编辑都有前后窗口,以**用户纠正率**度量——ground truth 来自用户
    行为,不是模型自评。replay 验证提供受控对照:同一真实输入、新旧基因。
@@ -117,8 +120,9 @@ npx lamarck-skill
 - **能不能不每次都问我?** 能——把久经考验的 skill 升到 `auto`
   (`/lamarck evolve add <skill> auto`):过门编辑不问直接落地,replay 把关,
   事后报告,一步 `git revert` 可撤。lamarck 自己永远不跑 auto。
-- **什么时候需要手动跑 `/lamarck`?** 清算其他会话攒下的积压、`audit <skill>`
-  做全量证据审查、`stats` 看记分板、`report` 看进化叙事。
+- **什么时候需要手动跑 `/lamarck`?** 清算其他会话攒下的积压(积压到够清算时
+  轻循环会主动提醒)、`audit <skill>` 做全量证据审查、`stats` 看记分板、
+  `report` 看进化叙事。
 - **怎么暂停?** 在 skill 目录建一个名为 `off` 的文件(hook 静默;手动调用
   不受影响)。卸载:`npx lamarck-skill uninstall`。
 - **为什么一直没有优化建议?** 证据门:每个 skill 要攒出 ≥2 次独立同类 gap

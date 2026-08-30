@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.6"
+  version: "5.7"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, Node.js 18+, and git; cross-platform (Windows / macOS / Linux)
 ---
 
@@ -17,7 +17,10 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
 
 - **记账**(自动,每次 Skill 调用,所有模式下都开):PostToolUse hook 写 `data/pending.jsonl`。
 - **轻循环**(回合末,**不加载本文件**):Stop hook 的 reason 内嵌迷你协议——
-  四维评估落 `data/ledger.jsonl`、经验沉淀进 `data/learnings/<skill>.md`、清本会话 pending。
+  对照该 skill rubric 中场景匹配的条目做四维评估落 `data/ledger.jsonl`、用户纠正
+  n=1 结晶进 `data/rubrics/<skill>.md`、经验沉淀进 `data/learnings/<skill>.md`、
+  蒸馏回归用例进 `data/replays/<skill>.jsonl`、清本会话 pending;他会话积压达阈值
+  时提示用户手动清算(指针会衰减,静默积压等于丢证据)。
   **触发时机由 `config.json` 决定**:`{"mode":"every|manual|threshold","threshold":N}`——
   `every` 每个用过 skill 的回合末触发;`manual` 从不自动触发;`threshold`(默认,N=5)
   攒到 N 条才批量评估。
@@ -129,8 +132,11 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
 **编辑后立即 replay 验证**(先于自然验证):从 `data/replays/<skill>.jsonl` 取该
 skill 的回归用例(见下),派新 subagent 分别按旧版与新版执行,按 rubric 成对比较。
 新版更差 → 直接回滚,不必等下一次真实调用。replay 用例的来源是**真实调用痕迹**:
-轻循环评估时,把 corrected / failed 及其他有代表性的调用蒸馏成用例
-`{"essence":"任务要点","expect":"按 rubric 的达标要求","src":"ledger ts"}`——
+轻循环评估时,把 corrected / failed 的调用、以及**场景尚未被语料覆盖的 clean
+调用**(每场景留一条代表)蒸馏成用例
+`{"essence":"任务要点","expect":"按 rubric 的达标要求","src":"ledger ts"}`。
+从不翻车的 skill 同样需要语料:上文"全场景 replay"要求编辑验证覆盖其他场景,
+auto 的放行条件也以语料非空为前提——只收割失败会让最健康的 skill 永远零语料。
 真实分布、零人工编写(darwin 的 test prompts 是手编合成的,此处严格更优)。
 
 **验证 rollout(成对盲评)**:被编辑 skill 的下一次被评估调用即自然验证。派一个
@@ -208,6 +214,11 @@ git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,
 `data/rejected.md`(拒绝缓冲)· `suggestions/<skill>.md`(待决提案)·
 `data/hook-errors.log`(hook 意外错误诊断,一行一条;安静=健康)·
 `CHANGELOG.md`(编辑留痕)。`off` 文件:停用自动 hook(手动调用不受影响)。
+
+**文件名规则**:上述逐 skill 路径中的 `<skill>`,把 `:` 写成 `__`
+(`caveman:caveman-help` → `caveman__caveman-help`)——冒号在 Windows 上是保留字符
+(NTFS 会当成备用数据流),直接用插件名会静默写坏。JSON 里的 `skill` 键与
+`maturity.json` 的键保留带冒号的真名,只有文件名做这层映射。
 
 存储设计决定:账本用 append-only JSONL 而非 sqlite——当前量级(日十条级)模型直读
 zero 依赖;若将来到万行级或需要复杂联查,`data/*.jsonl` 可一键导入 sqlite(本机已有

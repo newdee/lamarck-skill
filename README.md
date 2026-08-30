@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-52%2F52-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-63%2F63-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for Claude Code skills.** Not a
 one-shot optimizer for a hand-picked skill: install once, and every skill
@@ -44,10 +44,13 @@ to a 3-judge majority only on close calls) and human-in-the-loop checkpoints.
    stamped with the target skill's content hash (`ver`) for per-version
    health windows.
 2. **Light loop** (Stop hook): a mini evaluation protocol embedded in the hook
-   reason — no SKILL.md reload per turn. Four-dimension verdicts →
-   `data/ledger.jsonl`; lessons → `data/learnings/`; corrected/failed calls
-   distilled into `data/replays/` regression cases. Trigger timing is
-   configurable: every turn / manual / threshold batch (default: 5).
+   reason — no SKILL.md reload per turn. Four-dimension verdicts, judged
+   against the skill's own rubric (scenario-matched entries only) →
+   `data/ledger.jsonl`; a user correction crystallizes into a rubric entry
+   (n=1, provenance required); lessons → `data/learnings/`; regression cases →
+   `data/replays/`, harvested from failures *and* from clean calls whose
+   scenario the corpus does not cover yet. Trigger timing is configurable:
+   every turn / manual / threshold batch (default: 5).
 3. **Evolve** (gated): ≥2 independent same-type gaps → synthesize a bounded
    edit proposal from ALL evidence → user chooses apply / keep as suggestion /
    reject. Replay validation immediately, paired blind judging on the next
@@ -76,10 +79,12 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **52/52**: hook
+   sandbox, zero contact with live telemetry. Currently **63/63**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
-   gitignore boundaries. CI-able (exit code gated).
+   gitignore boundaries, and liveness of the protocol clauses the light loop
+   depends on (rubric wiring, replay harvesting, backlog surfacing).
+   CI-able (exit code gated).
 2. **Production telemetry** (accumulating by design): every invocation is
    stamped with the target skill's genome hash, so each accepted edit gets
    before/after windows measured in **user-correction rate** — ground truth
@@ -171,8 +176,9 @@ your skills are healthy, not that lamarck is idle — check
   gate-passing edits land without prompting, replay-gated, reported
   afterwards, one `git revert` away. lamarck itself never runs on auto.
 - **When should I run `/lamarck` manually?** To process backlog from other
-  sessions, `audit <skill>` for a full evidence review, `stats` for the
-  scoreboard, or `report` for the evolution narrative.
+  sessions (the light loop reminds you once it is worth draining),
+  `audit <skill>` for a full evidence review, `stats` for the scoreboard,
+  or `report` for the evolution narrative.
 - **How do I pause it?** Create a file named `off` in the skill directory
   (hooks go silent; manual invocation still works). Uninstall:
   `npx lamarck-skill uninstall`.

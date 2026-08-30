@@ -98,6 +98,21 @@ try {
     o.includes('trigger_fit') && o.includes('ESCALATE ONLY IF') && o.includes('AskUserQuestion') && o.includes('replays') && o.includes('carry ver over'));
   check('stop: reason embeds maturity clause (stable-skip, wake, sample)',
     o.includes('maturity.json') && o.includes('stable-skip') && o.includes('wakes the skill back to active') && o.includes('stability.sample'));
+  // The light loop is the ONLY automatic path that grows rubrics and replay
+  // corpora; if these clauses fall out of the reason, both mechanisms are
+  // declared in SKILL.md but never actually fire.
+  check('stop: reason wires the rubric (scenario-matched judging + n=1 crystallization with provenance)',
+    o.includes('rubrics') && o.includes('scenario tag matches this call') && o.includes('n=1 suffices') && o.includes('cite its ledger ts'));
+  check('stop: replay harvesting covers uncovered clean scenarios, not only failures',
+    o.includes('clean entry whose scenario is not yet represented'));
+  // Plugin skill names carry a colon, which NTFS reads as an alternate data
+  // stream - per-skill FILE paths must sanitize it, keys must not.
+  // Pending cleanup is a read-modify-write on a file other sessions append to;
+  // re-reading right before the write keeps a concurrent session's entry alive.
+  check('stop: pending cleanup re-reads before rewriting (concurrent-append safety)',
+    o.includes('re-read immediately before writing') && o.includes('must survive'));
+  check('stop: reason sanitizes colons in per-skill filenames (plugin names on Windows)',
+    o.includes("':' replaced by '__'") && o.includes('caveman__caveman-help') && o.includes('keep the real name'));
   const o2 = stopCall('{"session_id":"s2","stop_hook_active":false}');
   check('stop: output byte-identical across runs', o === o2);
   check('stop: other session silent', stopCall('{"session_id":"other","stop_hook_active":false}') === '');
@@ -110,6 +125,23 @@ try {
   fs.appendFileSync(pending, 'CORRUPT-NOT-JSON\n', 'utf8');
   o = stopCall('{"session_id":"s2","stop_hook_active":false}');
   check('stop: corrupt pending line tolerated', o.includes('"decision":"block"'));
+
+  // ---------- stop: other-session backlog (silent until actionable) ----------
+  check('stop: no backlog note when other sessions are quiet',
+    !o.includes('NOTE:'));
+  for (let i = 1; i <= 4; i++) postCall(`{"session_id":"s9","tool_name":"Skill","tool_input":{"skill":"bk${i}","args":""}}`);
+  check('stop: sub-threshold backlog stays silent',
+    !stopCall('{"session_id":"s2","stop_hook_active":false}').includes('NOTE:'));
+  postCall('{"session_id":"s9","tool_name":"Skill","tool_input":{"skill":"bk5","args":""}}');
+  o = stopCall('{"session_id":"s2","stop_hook_active":false}');
+  // The exact count also pins down what counts as backlog: a corrupt line
+  // sits in pending.jsonl throughout this block and must NOT be tallied.
+  check('stop: actionable backlog surfaced with exact count (corrupt lines excluded) and /lamarck pointer',
+    o.includes('NOTE: 5 pending entries from other sessions') && o.includes("'/lamarck'"));
+  check('stop: output stays byte-identical with the backlog clause present',
+    stopCall('{"session_id":"s2","stop_hook_active":false}') === o);
+  check('stop: backlog alone never blocks a session with no entries of its own',
+    stopCall('{"session_id":"zzz","stop_hook_active":false}') === '');
 
   // ---------- stop: mode variants & config fallbacks ----------
   fs.writeFileSync(cfgPath, '{"mode":"every"}', 'utf8');
@@ -167,6 +199,10 @@ try {
     skillMd.includes('evolution.auto') && /永不受 auto 覆盖|永不适用 auto/.test(skillMd) && skillMd.includes('放行条件'));
   check('static: empty replay corpus demotes auto (no zero-validation landings)',
     skillMd.includes('replay 语料为空') && skillMd.includes('降级为三选一'));
+  check('static: SKILL.md and the light loop agree on rubric wiring and clean-scenario harvesting',
+    skillMd.includes('结晶进 `data/rubrics/') && skillMd.includes('场景尚未被语料覆盖的 clean'));
+  check('static: SKILL.md documents the colon->__ filename rule for plugin skills',
+    skillMd.includes('caveman__caveman-help') && skillMd.includes('文件名规则'));
   // Bilingual README sync: the zh-CN version must exist, cross-link, and
   // agree with the English one on the load-bearing facts.
   const zhPath = path.join(repo, 'README.zh-CN.md');
