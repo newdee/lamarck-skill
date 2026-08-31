@@ -365,6 +365,19 @@ try {
   check('static: contract sets the three-attempt budget with the generic fallback',
     contract.includes('THREE verifier runs') && contract.includes('adapters/generic/') &&
     contract.includes('never generic by default'));
+  // Post-install onboarding: the installer's closing block is the one
+  // message every npx user is guaranteed to see - it must name the restart,
+  // the liveness probe, the other harnesses and the observe-only default.
+  if (fs.existsSync(path.join(repo, 'bin', 'install.js'))) {
+    const inst = fs.readFileSync(path.join(repo, 'bin', 'install.js'), 'utf8');
+    check('static: installer ends with the full next-steps block',
+      inst.includes('next steps') && inst.includes('Prove it is alive') &&
+      inst.includes("adapters', 'codex'") && inst.includes('adapter-contract.md') &&
+      inst.includes('observe-only'));
+  }
+  check('static: manual /lamarck opens with the wiring self-check for users who never ran the installer',
+    skillMd.includes('接线自检') && skillMd.includes('接线指引') &&
+    skillMd.includes('接线正常、数据未至') && skillMd.includes('不发接线指引'));
   // Bilingual README sync: the zh-CN version must exist, cross-link, and
   // agree with the English one on the load-bearing facts.
   const zhPath = path.join(repo, 'README.zh-CN.md');

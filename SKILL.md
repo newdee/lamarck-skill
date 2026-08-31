@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.11"
+  version: "5.12"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -187,7 +187,14 @@ better / tie → 保留,解除冻结。
 
 ## 手动 `/lamarck`
 
-- 无参数 — 处理全部 pending + 沉淀 learnings/rubric + 过优化门。本会话条目做
+- 无参数 — **第 0 步接线自检**,两种缺口分开诊断,命中即结束不评估:
+  ①读 `~/.claude/settings.json`,lamarck 两条 hook(posttool-skill /
+  stop-evaluate)缺任一 → 输出**接线指引**(`npx lamarck-skill` 重跑,或按
+  README Install 手动接;其他 harness 指 `adapters/` 各 README 与
+  `protocol/adapter-contract.md` 的 Self-service 粘贴 prompt);②hook 齐但
+  `data/` 下 pending 与 ledger 皆无 → 报**接线正常、数据未至**(hook 重启后
+  才加载;验活:用任一 skill 看 pending.jsonl 是否长一行)——不是配置错误,
+  不发接线指引。两关都过 → 处理全部 pending + 沉淀 learnings/rubric + 过优化门。本会话条目做
   四维评估;**历史会话条目先试 transcript 指针**:记录的 `transcript` 路径若仍
   存在(30 天清理期内),Read 其中该次调用附近的片段(按 ts 与 skill 名定位,
   只取所需切片,不整读),据真实执行痕迹做四维评估,并抽客观 friction(工具调用

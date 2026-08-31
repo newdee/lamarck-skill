@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-106%2F106-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-108%2F108-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for agent skills.** Not a one-shot
 optimizer for a hand-picked skill: install once, and every skill you have
@@ -117,7 +117,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **106/106**: hook
+   sandbox, zero contact with live telemetry. Currently **108/108**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -189,6 +189,39 @@ each adapter's README has the steps: [Codex](adapters/codex/README.md),
    both hooks; manual `/lamarck` invocation still works (explicit intent).
 
 </details>
+
+## Configure & use
+
+Daily use is zero-touch: adapters watch silently, evaluation runs at turn
+end, and you only hear from lamarck when evidence demands a decision (a
+three-choice prompt) or a backlog is worth draining. Two things are yours
+to configure.
+
+**`config.json`** (in the skill directory; local and never committed,
+created from `config.example.json` on install):
+
+| key | default | meaning |
+|---|---|---|
+| `mode` | `threshold` | when the light loop runs: `every` turn, `manual` only, or once `threshold` entries accumulate |
+| `threshold` | `5` | the batch size for `threshold` mode |
+| `evolution.default` | `observe` | trust tier for every unlisted skill: evidence accumulates, nothing is edited |
+| `evolution.evolve` / `suggest` / `auto` | `["lamarck"]` / `[]` / `[]` | per-tier skill lists — `evolve` asks you per edit, `suggest` only files proposals, `auto` is earned autonomy (replay-gated) |
+| `stability.streak` / `sample` | `10` / `5` | clean evaluations before a skill goes stable; spot-check rate afterwards |
+
+**Manual commands** — in Claude Code, `/lamarck` plus:
+
+| command | does |
+|---|---|
+| *(none)* | wiring self-check, then process all pending (this session and backlog) |
+| `stats` | invocation counts, correction rates, gap ranking |
+| `report [skill]` | evolution narrative: per-version health, kept/rolled-back edits, replay pass rate |
+| `audit <skill>` | full-evidence review of one skill, may produce an edit proposal (gated) |
+| `mode every\|manual\|threshold [N]` | switch evaluation timing |
+| `evolve list` / `add <skill> [tier]` / `remove <skill>` | manage the trust ladder |
+
+Other harnesses run the same loop through their adapters (wire once — see
+the Architecture table above); their evaluations land in the same ledger,
+and `/lamarck` from Claude Code reads it all.
 
 ## Your first week
 

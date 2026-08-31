@@ -151,7 +151,27 @@ function install() {
   const lines = (st.stdout || '').trim().split('\n');
   console.log(st.status === 0 ? `verify  ${lines[lines.length - 1]}` : `verify  FAILED\n${st.stdout}${st.stderr}`);
 
-  console.log('\nnext: restart Claude Code (or open /hooks once) so the hooks load.');
+  // 5. the user must leave knowing what still needs their hands: hooks only
+  // load on restart, other harnesses wire manually, defaults are observe-only.
+  console.log(`
+──── next steps ────────────────────────────────────────────────
+ 1. Restart Claude Code (or open /hooks once) - hooks load then.
+ 2. Prove it is alive: use any skill, then check that one line was
+    appended to ${path.join(target, 'data', 'pending.jsonl')}
+ 3. Use other agents too? Each wires in about a minute, and all of
+    them feed the same ledger:
+      Codex   ${path.join(target, 'adapters', 'codex', 'README.md')}
+      Cursor  ${path.join(target, 'adapters', 'cursor', 'README.md')}
+      pi      ${path.join(target, 'adapters', 'pi', 'README.md')}
+    Another harness entirely: paste the Self-service prompt from
+    ${path.join(target, 'protocol', 'adapter-contract.md')}
+    to that harness's agent - it writes the adapter, the bundled
+    verifier (scripts/verify-adapter.js) checks it, and after three
+    red runs it falls back to adapters/generic/.
+ Defaults until you touch config.json: evaluation batches at 5
+ calls, every skill is observe-only (evidence accumulates, nothing
+ is ever edited). Whitelist per skill later: /lamarck evolve add
+────────────────────────────────────────────────────────────────`);
   process.exit(st.status === 0 ? 0 : 1);
 }
 
