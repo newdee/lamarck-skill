@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-97%2F97-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-106%2F106-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for agent skills.** Not a one-shot
 optimizer for a hand-picked skill: install once, and every skill you have
@@ -104,8 +104,11 @@ contract is the interface documentation, and
 `node scripts/verify-adapter.js <manifest>` is the test suite that
 confirms the agent's implementation (schema, kill switch, self-exclusion,
 threshold behavior, protocol integrity). The contract's Self-service
-section carries a paste-ready prompt for that agent; the three shipped
-command-style adapters pass the same verifier.
+section carries a paste-ready prompt for that agent, with a three-attempt
+budget: still red after three verifier runs, the agent falls back to the
+shipped [generic adapter](adapters/generic/README.md) - tolerant field
+extraction, the output envelope a `--emit=` flag instead of code. Every
+shipped command-style adapter, generic included, passes the same verifier.
 
 ## Evidence
 
@@ -114,7 +117,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **97/97**: hook
+   sandbox, zero contact with live telemetry. Currently **106/106**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop

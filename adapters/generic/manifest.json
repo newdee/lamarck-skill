@@ -1,0 +1,26 @@
+{
+  "name": "generic",
+  "collector": {
+    "command": ["node", "adapters/generic/posttool.js"],
+    "samples": [
+      {
+        "input": { "session_id": "g1", "tool_name": "read", "tool_input": { "path": "/home/u/.agents/skills/demo-skill/SKILL.md" }, "transcript_path": "/tmp/g.jsonl" },
+        "expect": { "skill": "demo-skill", "session": "g1" }
+      },
+      {
+        "input": { "conversation_id": "g1", "toolName": "view_file", "arguments": { "file": "C:\\agents\\skills\\win-skill\\SKILL.md" } },
+        "expect": { "skill": "win-skill", "session": "g1" }
+      },
+      {
+        "input": { "thread_id": "g1", "event": "tool_done", "payload": { "target": "/opt/skills/deep-skill/SKILL.md" } },
+        "expect": { "skill": "deep-skill", "session": "g1" }
+      }
+    ],
+    "self_sample": { "session_id": "g1", "tool_name": "read", "tool_input": { "path": "/home/u/.claude/skills/lamarck/SKILL.md" } },
+    "noise_sample": { "session_id": "g1", "transcript_path": "/skills/decoy/SKILL.md", "workspaceFolders": ["/skills/decoy2/SKILL.md"], "tool_input": { "path": "/home/u/notes.md" } }
+  },
+  "trigger": {
+    "command": ["node", "adapters/generic/stop.js"],
+    "input_template": "{\"thread_id\":\"$SESSION\"}"
+  }
+}

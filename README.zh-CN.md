@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-97%2F97-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-106%2F106-brightgreen)](scripts/selftest.js)
 
 **agent skill 的生产环境自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -85,8 +85,10 @@ Cursor 与 pi 原生发现 `~/.claude/skills/`,Codex 可共享同一目录——
 ——这是新 harness 的**首次配置动作,一次做完长期生效**:契约文档就是接口
 说明,`node scripts/verify-adapter.js <manifest>` 就是确认实现的 testcase
 套件(schema、off 开关、自排除、阈值行为、协议完整性全覆盖)。契约的
-Self-service 段附了可直接粘给那个 agent 的 prompt;随包的三个命令型适配器
-过的就是同一套验证器。
+Self-service 段附了可直接粘给那个 agent 的 prompt,并规定**三次尝试预算**:
+第三次验证仍红,就降级到随包的[通用兜底适配器](adapters/generic/README.md)
+——字段宽容提取,输出信封用 `--emit=` 参数选,不用写代码。含 generic 在内的
+全部命令型适配器过的都是同一套验证器。
 
 ## 证据
 
@@ -94,7 +96,7 @@ Self-service 段附了可直接粘给那个 agent 的 prompt;随包的三个命�
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **97/97**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **106/106**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被

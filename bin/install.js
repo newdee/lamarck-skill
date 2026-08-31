@@ -29,6 +29,7 @@ const CORE = [
   'adapters/codex/posttool.js', 'adapters/codex/stop.js', 'adapters/codex/hooks.json', 'adapters/codex/README.md', 'adapters/codex/manifest.json',
   'adapters/cursor/posttool.js', 'adapters/cursor/stop.js', 'adapters/cursor/hooks.json', 'adapters/cursor/README.md', 'adapters/cursor/manifest.json',
   'adapters/pi/lamarck.ts', 'adapters/pi/README.md',
+  'adapters/generic/posttool.js', 'adapters/generic/stop.js', 'adapters/generic/README.md', 'adapters/generic/manifest.json',
   'data/rubrics/README.md'
 ];
 const HOOK_DEFS = [

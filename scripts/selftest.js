@@ -28,7 +28,7 @@ fs.writeFileSync(path.join(base, 'skills', 'fakeskill', 'SKILL.md'), 'fake skill
 fs.copyFileSync(path.join(repo, 'scripts', 'posttool-skill.js'), path.join(sb, 'scripts', 'posttool-skill.js'));
 fs.copyFileSync(path.join(repo, 'scripts', 'stop-evaluate.js'), path.join(sb, 'scripts', 'stop-evaluate.js'));
 fs.copyFileSync(path.join(repo, 'protocol', 'light-loop.md'), path.join(sb, 'protocol', 'light-loop.md'));
-for (const ad of ['codex', 'cursor']) {
+for (const ad of ['codex', 'cursor', 'generic']) {
   fs.mkdirSync(path.join(sb, 'adapters', ad), { recursive: true });
   for (const f of ['posttool.js', 'stop.js']) {
     fs.copyFileSync(path.join(repo, 'adapters', ad, f), path.join(sb, 'adapters', ad, f));
@@ -223,6 +223,34 @@ try {
   fs.writeFileSync(pending, '', 'utf8');
   check('codex stop: empty pending stays silent (latch or not)',
     (shim('codex', 'stop.js', '{"session_id":"cx9"}').stdout || '') === '');
+  // generic fallback: tolerant extraction across field conventions, and the
+  // --emit envelope switch on the trigger.
+  shim('generic', 'posttool.js', '{"thread_id":"g1","event":"tool_done","payload":{"target":"/opt/skills/alpha-skill/SKILL.md"}}');
+  let grec = lastRec();
+  check('generic posttool: thread_id + arbitrary nesting extracted',
+    grec.skill === 'alpha-skill' && grec.session === 'g1');
+  shim('generic', 'posttool.js', '{"sessionId":"g1","transcriptPath":"/skills/decoy/SKILL.md","workspaceFolders":["/skills/d2/SKILL.md"],"note":"no activation here"}');
+  check('generic posttool: transcript/workspace variants excluded from the scan', lastRec().skill === 'alpha-skill');
+  shim('generic', 'posttool.js', '{"session":"g1","x":{"p":"/s/beta-skill/SKILL.md"}}');
+  const gLatch = path.join(sb, 'data', '.generic-stop-latch.json');
+  const gStop = (input, emit) => (spawnSync(process.execPath,
+    [path.join(sb, 'adapters', 'generic', 'stop.js'), `--emit=${emit}`],
+    { input, encoding: 'utf8' }).stdout || '');
+  let go = gStop('{"conversation_id":"g1"}', 'block');
+  check('generic stop --emit=block: claude/codex envelope with the protocol',
+    go.includes('"decision":"block"') && go.includes('lamarck LIGHT loop'));
+  fs.unlinkSync(gLatch);
+  go = gStop('{"session_id":"g1"}', 'followup');
+  check('generic stop --emit=followup: cursor envelope', go.includes('"followup_message"') && !go.includes('"decision"'));
+  fs.unlinkSync(gLatch);
+  go = gStop('{"thread_id":"g1"}', 'text');
+  check('generic stop --emit=text: bare protocol text (no JSON envelope)',
+    go.startsWith('lamarck LIGHT loop') && !go.startsWith('{'));
+  fs.unlinkSync(gLatch);
+  check('generic stop: unknown emit value stays silent (never a malformed envelope)',
+    gStop('{"thread_id":"g1"}', 'chaos') === '');
+  check('generic stop: honors stop_hook_active when the harness sends one',
+    gStop('{"thread_id":"g1","stop_hook_active":true}', 'block') === '');
   try { fs.unlinkSync(latchC); } catch { /* may not exist */ }
   try { fs.unlinkSync(path.join(sb, 'data', '.cursor-stop-latch.json')); } catch { /* may not exist */ }
   fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5}', 'utf8');
@@ -324,7 +352,7 @@ try {
       fs.readFileSync(path.join(repo, 'adapters', ad, 'README.md'), 'utf8').includes('Verification status')));
   // Conformance verifier: the executable half of the adapter contract.
   // Every shipped command-style adapter must pass it end to end.
-  for (const ad of ['claude-code', 'codex', 'cursor']) {
+  for (const ad of ['claude-code', 'codex', 'cursor', 'generic']) {
     const vr = spawnSync(process.execPath,
       [path.join(repo, 'scripts', 'verify-adapter.js'), path.join(repo, 'adapters', ad, 'manifest.json')],
       { encoding: 'utf8', timeout: 120000 });
@@ -334,6 +362,9 @@ try {
   check('static: contract documents the agent-writes-lamarck-verifies workflow with a paste-ready prompt',
     contract.includes('verify-adapter.js') && contract.includes('the agent writes, lamarck verifies') &&
     contract.includes('Paste this to the new harness'));
+  check('static: contract sets the three-attempt budget with the generic fallback',
+    contract.includes('THREE verifier runs') && contract.includes('adapters/generic/') &&
+    contract.includes('never generic by default'));
   // Bilingual README sync: the zh-CN version must exist, cross-link, and
   // agree with the English one on the load-bearing facts.
   const zhPath = path.join(repo, 'README.zh-CN.md');

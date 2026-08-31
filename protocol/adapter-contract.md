@@ -105,8 +105,19 @@ Paste this to the new harness's agent, verbatim:
 > trigger) plus a `manifest.json` whose samples are this harness's real
 > hook payload shapes. Run
 > `node <lamarck-dir>/scripts/verify-adapter.js <that manifest>` and
-> iterate until it is green. Then wire the hooks into this harness's
-> config, show me the wiring, and do not disable any existing hooks.
+> iterate. Your attempt budget is THREE verifier runs: still red after the
+> third, stop writing code and fall back to the shipped generic adapter
+> (`<lamarck-dir>/adapters/generic/README.md`) - wire its posttool.js to a
+> post-tool event and its stop.js to a turn-end event with the `--emit=`
+> envelope this harness consumes. Either way: wire the hooks into this
+> harness's config, show me the wiring, and do not disable any existing
+> hooks.
+
+**The fallback tier** (`adapters/generic/`): lamarck-provided function
+adapters assuming only "JSON on stdin, stdout read back". Bespoke beats
+generic on telemetry richness, so the order is bespoke first, generic on a
+blown budget - never generic by default, and switching to a later bespoke
+adapter keeps the shared ledger.
 
 1. Tell your agent to read this contract and its harness's hook docs, then
    write a command-style collector and trigger (stdin JSON in, stdout out)
