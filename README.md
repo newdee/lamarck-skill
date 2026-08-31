@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-64%2F64-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-74%2F74-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for Claude Code skills.** Not a
 one-shot optimizer for a hand-picked skill: install once, and every skill
@@ -72,6 +72,20 @@ to a 3-judge majority only on close calls) and human-in-the-loop checkpoints.
 Everything irreversible requires explicit user confirmation. Telemetry never
 leaves the machine (`.gitignore`d); rubrics are versioned with the code.
 
+## Architecture: core + adapters
+
+The core is harness-agnostic - the data files, the optimization gate, and
+the evaluation protocol ([protocol/light-loop.md](protocol/light-loop.md),
+single source, injected verbatim) contain nothing Claude-specific. A
+harness plugs in through an **adapter** with three roles - collector
+(append a pending line per invocation), trigger (decide when to evaluate),
+executor (a model that runs the protocol) - specified in
+[protocol/adapter-contract.md](protocol/adapter-contract.md). Claude Code
+ships as the reference adapter (the two hooks in `scripts/`); pi is the
+first planned second target (its extension mechanism supports all three
+roles); Codex can host collector + trigger today but has no way to inject
+the protocol back into its model, so it would run at the manual tier.
+
 ## Evidence
 
 Honesty policy: **no self-graded scores** (an optimizer scoring its own output
@@ -79,7 +93,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **64/64**: hook
+   sandbox, zero contact with live telemetry. Currently **74/74**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -213,12 +227,21 @@ from sessions rather than evolving existing ones.
 
 ## Roadmap
 
-The genome abstraction is not skill-specific: any text artifact that steers
-an agent and is exercised repeatedly in production can evolve under the same
-telemetry → ledger → rubric → gated-edit architecture. Planned targets, in
-order: subagent definitions (`.claude/agents/`), CLAUDE.md / AGENTS.md memory
-files, slash commands, MCP tool configurations. Same Iron Rules everywhere:
-evidence gates, user-in-the-loop, rollback, whitelists.
+Two orthogonal axes, both harness-shaped by the adapter contract:
+
+- **Genome axis** - the abstraction is not skill-specific: any text artifact
+  that steers an agent and is exercised repeatedly in production can evolve
+  under the same telemetry → ledger → rubric → gated-edit architecture.
+  Planned targets, in order: subagent definitions (`.claude/agents/`),
+  CLAUDE.md / AGENTS.md memory files, slash commands, MCP tool
+  configurations.
+- **Harness axis** - the core is agent-agnostic (see Architecture); a pi
+  adapter is the first planned second harness, and Agent Skills adoption
+  across tools means the same SKILL.md genomes recur across harnesses -
+  one shared ledger then measures a skill across all of them.
+
+Same Iron Rules everywhere: evidence gates, user-in-the-loop, rollback,
+whitelists.
 
 ## Status
 

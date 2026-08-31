@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-64%2F64-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-74%2F74-brightgreen)](scripts/selftest.js)
 
 **生产环境的 skill 自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -59,13 +59,25 @@ npx lamarck-skill
 一切不可逆动作需用户明确确认。遥测永不出机(已 `.gitignore`);rubric 与
 代码同库版本化。
 
+## 架构:core + 适配器
+
+core 是 harness 无关的——数据文件、优化门、评估协议
+([protocol/light-loop.md](protocol/light-loop.md),单源,逐字注入)没有
+任何 Claude 特有内容。harness 通过**适配器**接入,三个角色——collector
+(每次调用追加一行 pending)、trigger(决定何时评估)、executor(执行协议
+的模型)——契约见
+[protocol/adapter-contract.md](protocol/adapter-contract.md)。Claude Code
+是随包的参考适配器(`scripts/` 里的两个 hook);pi 是计划中的第二目标
+(其 extension 机制三个角色齐备);Codex 今天能承担 collector + trigger,
+但无法把协议注入回模型,只能跑 manual 档。
+
 ## 证据
 
 诚实政策:**不做自评分数**(优化器用自家评委给自家产出打分证明不了任何事;
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **64/64**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **74/74**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
@@ -154,10 +166,18 @@ hook 接在 `~/.claude/settings.json`(PostToolUse 匹配 `Skill`,Stop)。
 
 ## 路线图
 
-基因抽象不限于 skill:任何驾驭 agent、且在生产中被反复使用的文本工件,都能
-在同一套 遥测 → 账本 → 尺子 → 门控编辑 架构下进化。计划目标依次:subagent
-定义(`.claude/agents/`)、CLAUDE.md / AGENTS.md 记忆文件、slash command、
-MCP 工具配置。Iron Rules 全线通用:证据门、用户在环、回滚、白名单。
+两条正交轴,都由适配器契约定形:
+
+- **基因轴**——抽象不限于 skill:任何驾驭 agent、且在生产中被反复使用的
+  文本工件,都能在同一套 遥测 → 账本 → 尺子 → 门控编辑 架构下进化。计划
+  目标依次:subagent 定义(`.claude/agents/`)、CLAUDE.md / AGENTS.md
+  记忆文件、slash command、MCP 工具配置。
+- **harness 轴**——core 与 agent 无关(见架构章);pi 适配器是计划中的
+  第二个 harness,而 Agent Skills 规范的跨工具采纳意味着同一份 SKILL.md
+  基因会在多个 harness 反复出现——共享账本届时能跨 harness 度量同一个
+  skill。
+
+Iron Rules 全线通用:证据门、用户在环、回滚、白名单。
 
 ## 状态
 

@@ -1,6 +1,6 @@
 {
   "name": "lamarck-skill",
-  "version": "5.7.1",
+  "version": "5.8.0",
   "description": "生产环境的 skill 自进化系统 | A production self-evolving system for Claude Code: every installed skill keeps accumulating evidence from real usage and evolves when the gate opens - governed, user-authorized, reversible.",
   "bin": {
     "lamarck-skill": "bin/install.js"
@@ -8,6 +8,7 @@
   "files": [
     "bin/",
     "scripts/",
+    "protocol/",
     "SKILL.md",
     "README.zh-CN.md",
     "gitignore.template",

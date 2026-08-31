@@ -22,10 +22,12 @@ function check(name, cond) {
 const base = fs.mkdtempSync(path.join(os.tmpdir(), 'lamarck-selftest-'));
 const sb = path.join(base, 'skills', 'lamarck');
 fs.mkdirSync(path.join(sb, 'scripts'), { recursive: true });
+fs.mkdirSync(path.join(sb, 'protocol'), { recursive: true });
 fs.mkdirSync(path.join(base, 'skills', 'fakeskill'), { recursive: true });
 fs.writeFileSync(path.join(base, 'skills', 'fakeskill', 'SKILL.md'), 'fake skill body', 'utf8');
 fs.copyFileSync(path.join(repo, 'scripts', 'posttool-skill.js'), path.join(sb, 'scripts', 'posttool-skill.js'));
 fs.copyFileSync(path.join(repo, 'scripts', 'stop-evaluate.js'), path.join(sb, 'scripts', 'stop-evaluate.js'));
+fs.copyFileSync(path.join(repo, 'protocol', 'light-loop.md'), path.join(sb, 'protocol', 'light-loop.md'));
 const cfgPath = path.join(sb, 'config.json');
 fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5}', 'utf8');
 
@@ -129,6 +131,27 @@ try {
   o = stopCall('{"session_id":"s2","stop_hook_active":false}');
   check('stop: corrupt pending line tolerated', o.includes('"decision":"block"'));
 
+  // ---------- stop: single-source protocol injection ----------
+  check('stop: reason declares the working directory for relative paths',
+    o.includes('Working directory:') && o.includes('every relative path below resolves against it'));
+  check('stop: no authoring comment or placeholder leaks into the reason',
+    !o.includes('<!--') && !o.includes('{{'));
+  const protoFile = path.join(sb, 'protocol', 'light-loop.md');
+  const savedProto = fs.readFileSync(protoFile, 'utf8');
+  fs.unlinkSync(protoFile);
+  check('stop: missing protocol file stays silent (pending survives, one diagnostic logged)',
+    stopCall('{"session_id":"s2","stop_hook_active":false}') === '' &&
+    fs.readFileSync(path.join(sb, 'data', 'hook-errors.log'), 'utf8').includes('light-loop protocol'));
+  fs.writeFileSync(protoFile, 'body with {{UNKNOWN}} placeholder', 'utf8');
+  check('stop: unfilled placeholder stays silent instead of shipping a broken protocol',
+    stopCall('{"session_id":"s2","stop_hook_active":false}') === '');
+  fs.writeFileSync(protoFile, '<!-- unclosed comment\nprotocol body {{BACKLOG}}', 'utf8');
+  check('stop: unclosed authoring comment stays silent instead of leaking into the reason',
+    stopCall('{"session_id":"s2","stop_hook_active":false}') === '');
+  fs.writeFileSync(protoFile, savedProto, 'utf8');
+  check('stop: protocol restored, hook blocks again',
+    stopCall('{"session_id":"s2","stop_hook_active":false}').includes('"decision":"block"'));
+
   // ---------- stop: other-session backlog (silent until actionable) ----------
   check('stop: no backlog note when other sessions are quiet',
     !o.includes('NOTE:'));
@@ -206,6 +229,24 @@ try {
     skillMd.includes('结晶进 `data/rubrics/') && skillMd.includes('场景尚未被语料覆盖的 clean'));
   check('static: SKILL.md documents the colon->__ filename rule for plugin skills',
     skillMd.includes('caveman__caveman-help') && skillMd.includes('文件名规则'));
+  // Single-source protocol: the file must exist with its one placeholder,
+  // the adapter must reference it, and the adapter contract must describe
+  // the collector's pending-line fields so a foreign adapter can implement
+  // them without reading the claude-code hook source.
+  // Judge the BODY the adapter injects, i.e. after stripping the authoring
+  // comment (which may itself mention the placeholder while documenting it).
+  const protoBody = fs.readFileSync(path.join(repo, 'protocol', 'light-loop.md'), 'utf8')
+    .replace(/<!--[\s\S]*?-->/g, '');
+  check('static: protocol body carries exactly one placeholder, {{BACKLOG}}',
+    (protoBody.match(/\{\{BACKLOG\}\}/g) || []).length === 1 && (protoBody.match(/\{\{/g) || []).length === 1);
+  check('static: protocol body keeps paths relative (no absolute or backslashed paths)',
+    !/[A-Za-z]:\\/.test(protoBody) && protoBody.includes('data/pending.jsonl'));
+  check('static: stop hook injects the single-source protocol file',
+    fs.readFileSync(path.join(repo, 'scripts', 'stop-evaluate.js'), 'utf8').includes("'light-loop.md'"));
+  const contract = fs.readFileSync(path.join(repo, 'protocol', 'adapter-contract.md'), 'utf8');
+  check('static: adapter contract names the three roles and every pending-line field',
+    ['collector', 'trigger', 'executor', '"ts"', '"session"', '"skill"', '"args"', '"ver"', '"transcript"']
+      .every(k => contract.toLowerCase().includes(k.toLowerCase())));
   // Bilingual README sync: the zh-CN version must exist, cross-link, and
   // agree with the English one on the load-bearing facts.
   const zhPath = path.join(repo, 'README.zh-CN.md');

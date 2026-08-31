@@ -24,6 +24,7 @@ const CORE = [
   'SKILL.md', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'LICENSE',
   'config.example.json', 'gitignore.template',
   'scripts/posttool-skill.js', 'scripts/stop-evaluate.js', 'scripts/selftest.js',
+  'protocol/light-loop.md', 'protocol/adapter-contract.md',
   'data/rubrics/README.md'
 ];
 const HOOK_DEFS = [

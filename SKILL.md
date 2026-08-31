@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.7"
+  version: "5.8"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, Node.js 18+, and git; cross-platform (Windows / macOS / Linux)
 ---
 
@@ -16,7 +16,9 @@ compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.
 lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,重活分级触发:
 
 - **记账**(自动,每次 Skill 调用,所有模式下都开):PostToolUse hook 写 `data/pending.jsonl`。
-- **轻循环**(回合末,**不加载本文件**):Stop hook 的 reason 内嵌迷你协议——
+- **轻循环**(回合末,**不加载本文件**):协议文本单源于 `protocol/light-loop.md`
+  (harness 无关,任何适配器逐字注入,见 `protocol/adapter-contract.md`),
+  Claude Code 适配器由 Stop hook 运行时读入拼进 reason——
   对照该 skill rubric 中场景匹配的条目做四维评估落 `data/ledger.jsonl`、用户纠正
   n=1 结晶进 `data/rubrics/<skill>.md`、经验沉淀进 `data/learnings/<skill>.md`、
   蒸馏回归用例进 `data/replays/<skill>.jsonl`、清本会话 pending;他会话积压达阈值
