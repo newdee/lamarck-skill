@@ -9,9 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write   # OIDC for npm trusted publishing - no stored secrets
-      contents: read
+      contents: write   # create the GitHub Release for the tag
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-tags: true   # the annotated tag message becomes the release notes
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -24,3 +26,13 @@ jobs:
         run: node scripts/selftest.js
       - name: publish (OIDC, provenance automatic)
         run: npm publish --access public
+      - name: github release (notes from the annotated tag, generated as fallback)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME")"
+          if [ -n "$notes" ]; then
+            gh release create "$GITHUB_REF_NAME" --title "lamarck $GITHUB_REF_NAME" --notes "$notes" --latest
+          else
+            gh release create "$GITHUB_REF_NAME" --title "lamarck $GITHUB_REF_NAME" --generate-notes --latest
+          fi
