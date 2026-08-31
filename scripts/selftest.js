@@ -28,6 +28,12 @@ fs.writeFileSync(path.join(base, 'skills', 'fakeskill', 'SKILL.md'), 'fake skill
 fs.copyFileSync(path.join(repo, 'scripts', 'posttool-skill.js'), path.join(sb, 'scripts', 'posttool-skill.js'));
 fs.copyFileSync(path.join(repo, 'scripts', 'stop-evaluate.js'), path.join(sb, 'scripts', 'stop-evaluate.js'));
 fs.copyFileSync(path.join(repo, 'protocol', 'light-loop.md'), path.join(sb, 'protocol', 'light-loop.md'));
+for (const ad of ['codex', 'cursor']) {
+  fs.mkdirSync(path.join(sb, 'adapters', ad), { recursive: true });
+  for (const f of ['posttool.js', 'stop.js']) {
+    fs.copyFileSync(path.join(repo, 'adapters', ad, f), path.join(sb, 'adapters', ad, f));
+  }
+}
 const cfgPath = path.join(sb, 'config.json');
 fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5}', 'utf8');
 
@@ -169,6 +175,58 @@ try {
   check('stop: backlog alone never blocks a session with no entries of its own',
     stopCall('{"session_id":"zzz","stop_hook_active":false}') === '');
 
+  // ---------- adapters: codex + cursor shims over the reference scripts ----------
+  // The shims translate each harness's documented stdin/stdout contract and
+  // delegate all logic to scripts/. Fabricated inputs follow the published
+  // field names; a live-session validation is out of selftest scope.
+  const shim = (ad, f, input) => spawnSync(process.execPath, [path.join(sb, 'adapters', ad, f)], { input, encoding: 'utf8' });
+  fs.writeFileSync(pending, '', 'utf8');
+  let sr = shim('codex', 'posttool.js',
+    '{"session_id":"cx1","hook_event_name":"PostToolUse","tool_name":"read","tool_input":{"path":"C:/Users/u/.codex/skills/myskill/SKILL.md"},"transcript_path":"C:/t/cx.jsonl"}');
+  let rec2 = pendingLines().length ? lastRec() : null;
+  check('codex posttool: SKILL.md read becomes a pending line with session and transcript',
+    sr.status === 0 && rec2 && rec2.skill === 'myskill' && rec2.session === 'cx1' && rec2.transcript === 'C:/t/cx.jsonl' && rec2.args.startsWith('codex:read'));
+  shim('codex', 'posttool.js', '{"session_id":"cx1","tool_name":"read","tool_input":{"path":"C:\\\\Users\\\\u\\\\.claude\\\\skills\\\\winskill\\\\SKILL.md"}}');
+  check('codex posttool: windows backslash path detected (JSON-escaped haystack)',
+    pendingLines().length === 2 && lastRec().skill === 'winskill');
+  shim('codex', 'posttool.js', '{"session_id":"cx1","tool_name":"read","tool_input":{"path":"C:/x/notes.md"}}');
+  check('codex posttool: non-skill read ignored', pendingLines().length === 2);
+  shim('codex', 'posttool.js', '{"session_id":"cx1","tool_name":"read","tool_input":{"path":"C:/s/lamarck/SKILL.md"}}');
+  check('codex posttool: lamarck self-read excluded', pendingLines().length === 2);
+  check('codex posttool: garbage stdin exits 0, no append', shim('codex', 'posttool.js', '{{nope').status === 0 && pendingLines().length === 2);
+  sr = shim('cursor', 'posttool.js',
+    '{"conversation_id":"cu1","hook_event_name":"postToolUse","tool_call":{"path":"/home/u/.claude/skills/webskill/SKILL.md"},"transcript_path":"/tmp/cu.jsonl"}');
+  rec2 = lastRec();
+  check('cursor posttool: conversation_id maps to session, skill extracted',
+    sr.status === 0 && rec2.skill === 'webskill' && rec2.session === 'cu1' && rec2.transcript === '/tmp/cu.jsonl');
+  shim('cursor', 'posttool.js', '{"conversation_id":"cu1","transcript_path":"/skills/decoy/SKILL.md","workspace_roots":["/skills/decoy2/SKILL.md"],"tool_call":{"path":"/x/readme.md"}}');
+  check('cursor posttool: SKILL.md inside transcript/workspace fields is not an activation', pendingLines().length === 3);
+  // stop shims: fill to the threshold for one codex session, then evaluate
+  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":2}', 'utf8');
+  shim('codex', 'posttool.js', '{"session_id":"cx1","tool_name":"read","tool_input":{"path":"/s/otherskill/SKILL.md"}}');
+  const latchC = path.join(sb, 'data', '.codex-stop-latch.json');
+  let so = shim('codex', 'stop.js', '{"session_id":"cx1","hook_event_name":"Stop","last_assistant_message":"done"}').stdout || '';
+  check('codex stop: delegates and speaks the claude-compatible block contract',
+    so.includes('"decision":"block"') && so.includes('lamarck LIGHT loop') && so.includes('trigger_fit'));
+  check('codex stop: latch written after a block', fs.existsSync(latchC));
+  check('codex stop: cooldown latch silences the immediate re-fire',
+    (shim('codex', 'stop.js', '{"session_id":"cx1"}').stdout || '') === '');
+  fs.writeFileSync(latchC, JSON.stringify({ session: 'cx1', ts: Date.now() - 600000 }), 'utf8');
+  check('codex stop: expired latch fires again',
+    (shim('codex', 'stop.js', '{"session_id":"cx1"}').stdout || '').includes('"decision":"block"'));
+  fs.unlinkSync(latchC);
+  shim('cursor', 'posttool.js', '{"conversation_id":"cu1","tool_call":{"path":"/home/u/.claude/skills/otherweb/SKILL.md"}}');
+  so = shim('cursor', 'stop.js', '{"conversation_id":"cu1","hook_event_name":"stop"}').stdout || '';
+  check('cursor stop: translates the block into a followup_message with the protocol',
+    so.includes('"followup_message"') && !so.includes('"decision"') && so.includes('lamarck LIGHT loop'));
+  check('cursor stop: no session id stays silent', (shim('cursor', 'stop.js', '{"hook_event_name":"stop"}').stdout || '') === '');
+  fs.writeFileSync(pending, '', 'utf8');
+  check('codex stop: empty pending stays silent (latch or not)',
+    (shim('codex', 'stop.js', '{"session_id":"cx9"}').stdout || '') === '');
+  try { fs.unlinkSync(latchC); } catch { /* may not exist */ }
+  try { fs.unlinkSync(path.join(sb, 'data', '.cursor-stop-latch.json')); } catch { /* may not exist */ }
+  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5}', 'utf8');
+
   // ---------- stop: mode variants & config fallbacks ----------
   fs.writeFileSync(cfgPath, '{"mode":"every"}', 'utf8');
   fs.writeFileSync(pending, '', 'utf8');
@@ -247,6 +305,23 @@ try {
   check('static: adapter contract names the three roles and every pending-line field',
     ['collector', 'trigger', 'executor', '"ts"', '"session"', '"skill"', '"args"', '"ver"', '"transcript"']
       .every(k => contract.toLowerCase().includes(k.toLowerCase())));
+  // Shipped adapters: each harness dir carries its shims (or extension),
+  // wiring template and README; the pi extension must render the same
+  // single-source protocol, never a fork of it.
+  for (const ad of ['codex', 'cursor']) {
+    const hj = JSON.parse(fs.readFileSync(path.join(repo, 'adapters', ad, 'hooks.json'), 'utf8'));
+    check(`static: ${ad} hooks.json template is valid JSON and points at both shims`,
+      JSON.stringify(hj).includes(`adapters/${ad}/posttool.js`) && JSON.stringify(hj).includes(`adapters/${ad}/stop.js`) &&
+      fs.existsSync(path.join(repo, 'adapters', ad, 'README.md')));
+  }
+  const piExt = fs.readFileSync(path.join(repo, 'adapters', 'pi', 'lamarck.ts'), 'utf8');
+  check('static: pi extension renders the single-source protocol (no fork) and fails closed',
+    piExt.includes("'light-loop.md'") || piExt.includes('"light-loop.md"'));
+  check('static: pi extension supports LAMARCK_HOME override and the off switch',
+    piExt.includes('LAMARCK_HOME') && piExt.includes('offSwitch'));
+  check('static: every adapter README states its verification status honestly',
+    ['codex', 'cursor', 'pi'].every(ad =>
+      fs.readFileSync(path.join(repo, 'adapters', ad, 'README.md'), 'utf8').includes('Verification status')));
   // Bilingual README sync: the zh-CN version must exist, cross-link, and
   // agree with the English one on the load-bearing facts.
   const zhPath = path.join(repo, 'README.zh-CN.md');

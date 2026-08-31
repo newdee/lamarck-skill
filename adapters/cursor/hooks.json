@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      { "command": "node \"<HOME>/.claude/skills/lamarck/adapters/cursor/posttool.js\"" }
+    ],
+    "stop": [
+      { "command": "node \"<HOME>/.claude/skills/lamarck/adapters/cursor/stop.js\"" }
+    ]
+  }
+}

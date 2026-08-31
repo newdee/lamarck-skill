@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"<HOME>/.claude/skills/lamarck/adapters/codex/posttool.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"<HOME>/.claude/skills/lamarck/adapters/codex/stop.js\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-74%2F74-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-93%2F93-brightgreen)](scripts/selftest.js)
 
 **生产环境的 skill 自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -66,10 +66,18 @@ core 是 harness 无关的——数据文件、优化门、评估协议
 任何 Claude 特有内容。harness 通过**适配器**接入,三个角色——collector
 (每次调用追加一行 pending)、trigger(决定何时评估)、executor(执行协议
 的模型)——契约见
-[protocol/adapter-contract.md](protocol/adapter-contract.md)。Claude Code
-是随包的参考适配器(`scripts/` 里的两个 hook);pi 是计划中的第二目标
-(其 extension 机制三个角色齐备);Codex 今天能承担 collector + trigger,
-但无法把协议注入回模型,只能跑 manual 档。
+[protocol/adapter-contract.md](protocol/adapter-contract.md)。全部适配器
+共享同一遥测库:一个 skill 在多个 harness 被使用,证据汇进同一条账本。
+
+| Harness | 机制 | 角色 | 状态 |
+|---|---|---|---|
+| Claude Code | PostToolUse + Stop hooks(`scripts/`) | 三角色全 | 参考实现,生产中 |
+| Codex >= 0.142 | hooks.json shim([adapters/codex](adapters/codex/README.md))——stdin 字段与 Stop 契约兼容 Claude | 三角色全 | 机制级实测(selftest,按公开文档字段);欢迎真实会话反馈 |
+| Cursor | hooks.json shim([adapters/cursor](adapters/cursor/README.md))——`stop` 经 `followup_message` 注入 | 三角色全 | 机制级实测;欢迎真实会话反馈 |
+| pi | 单个 TypeScript extension([adapters/pi](adapters/pi/README.md)) | 三角色全 | 按公开 API 编写;尚未在真实 pi 中运行 |
+
+Cursor 与 pi 原生发现 `~/.claude/skills/`,Codex 可共享同一目录——lamarck
+观察的基因在各 harness 里就是同一批文件。
 
 ## 证据
 
@@ -77,7 +85,7 @@ core 是 harness 无关的——数据文件、优化门、评估协议
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **74/74**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **93/93**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
@@ -172,10 +180,10 @@ hook 接在 `~/.claude/settings.json`(PostToolUse 匹配 `Skill`,Stop)。
   文本工件,都能在同一套 遥测 → 账本 → 尺子 → 门控编辑 架构下进化。计划
   目标依次:subagent 定义(`.claude/agents/`)、CLAUDE.md / AGENTS.md
   记忆文件、slash command、MCP 工具配置。
-- **harness 轴**——core 与 agent 无关(见架构章);pi 适配器是计划中的
-  第二个 harness,而 Agent Skills 规范的跨工具采纳意味着同一份 SKILL.md
-  基因会在多个 harness 反复出现——共享账本届时能跨 harness 度量同一个
-  skill。
+- **harness 轴**——Claude Code、Codex、Cursor、pi 四家适配器已随包
+  (见架构章);下一步是真实会话验证加固,再按契约扩新 harness。Agent
+  Skills 规范的跨工具采纳意味着同一份 SKILL.md 基因会在多个 harness 反复
+  出现——共享账本跨 harness 度量同一个 skill。
 
 Iron Rules 全线通用:证据门、用户在环、回滚、白名单。
 

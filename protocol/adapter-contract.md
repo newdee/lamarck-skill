@@ -68,16 +68,27 @@ non-empty replay corpus), everything ledgered, everything reversible.
   trigger + executor = Stop hook whose block reason carries the protocol -
   the turn's own model evaluates at zero marginal cost. Scripts stay in
   `scripts/` (path frozen: existing installs reference it from
-  settings.json; future adapters live in `adapters/<harness>/`).
-- **pi** (first planned target): a pi extension can observe skill
-  invocations (collector) and inject the rendered protocol into the
-  session (executor) - both hooks of the free-rider pattern exist. Trigger
-  piggybacks on turn end.
-- **Codex**: `notify` (turn-ended) can run an external collector over the
-  session logs, but nothing injects a protocol back into the model - the
-  executor is the missing role. A Codex adapter therefore runs at the
-  `manual` tier: collect continuously, evaluate when the user asks Codex
-  to run the protocol.
+  settings.json; other adapters live in `adapters/<harness>/`).
+- **Codex** (shipped, `adapters/codex/`): Codex >= 0.142 hooks speak
+  Claude-compatible stdin fields AND the same Stop-hook block contract, so
+  both shims delegate to the reference scripts. Differences handled: no
+  Skill tool (activation = a SKILL.md read, pattern-matched from tool
+  input) and no `stop_hook_active` loop guard (a per-session cooldown
+  latch substitutes).
+- **Cursor** (shipped, `adapters/cursor/`): `postToolUse` collects (same
+  SKILL.md-read signal; session identity from `conversation_id`), and the
+  `stop` hook injects via `{"followup_message": ...}` - the shim
+  translates the reference block contract into that shape. Cursor
+  discovers `~/.claude/skills/` natively, so both harnesses exercise the
+  same genome files.
+- **pi** (shipped, `adapters/pi/`): a single TypeScript extension covers
+  all three roles in-process - `tool_call` collects, `agent_settled`
+  triggers, `sendMessage(deliverAs: "followUp")` injects the protocol it
+  renders itself from the same single-source file.
+
+A harness with no injection path at all still fits the contract at the
+`manual` tier: collect continuously, evaluate when the user asks that
+harness's model to run the protocol.
 
 ## Non-negotiables for any adapter
 

@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.8"
+  version: "5.9"
 compatibility: Requires the paired PostToolUse/Stop hooks in ~/.claude/settings.json, Node.js 18+, and git; cross-platform (Windows / macOS / Linux)
 ---
 

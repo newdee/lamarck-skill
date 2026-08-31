@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-74%2F74-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-93%2F93-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for Claude Code skills.** Not a
 one-shot optimizer for a hand-picked skill: install once, and every skill
@@ -80,11 +80,20 @@ single source, injected verbatim) contain nothing Claude-specific. A
 harness plugs in through an **adapter** with three roles - collector
 (append a pending line per invocation), trigger (decide when to evaluate),
 executor (a model that runs the protocol) - specified in
-[protocol/adapter-contract.md](protocol/adapter-contract.md). Claude Code
-ships as the reference adapter (the two hooks in `scripts/`); pi is the
-first planned second target (its extension mechanism supports all three
-roles); Codex can host collector + trigger today but has no way to inject
-the protocol back into its model, so it would run at the manual tier.
+[protocol/adapter-contract.md](protocol/adapter-contract.md). All adapters
+share one telemetry store, so a skill exercised from several harnesses
+accumulates one evidence trail.
+
+| Harness | Mechanism | Roles | Status |
+|---|---|---|---|
+| Claude Code | PostToolUse + Stop hooks (`scripts/`) | all three | reference - in production |
+| Codex >= 0.142 | hooks.json shims ([adapters/codex](adapters/codex/README.md)) - stdin fields and Stop contract are Claude-compatible | all three | mechanism-tested (selftest, documented shapes); live-session reports welcome |
+| Cursor | hooks.json shims ([adapters/cursor](adapters/cursor/README.md)) - `stop` injects via `followup_message` | all three | mechanism-tested; live-session reports welcome |
+| pi | one TypeScript extension ([adapters/pi](adapters/pi/README.md)) | all three | written to the published API; not yet run in a live pi |
+
+Cursor and pi both discover `~/.claude/skills/` natively, and Codex can
+share the same directory - the genomes lamarck watches are literally the
+same files across harnesses.
 
 ## Evidence
 
@@ -93,7 +102,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **74/74**: hook
+   sandbox, zero contact with live telemetry. Currently **93/93**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -235,10 +244,11 @@ Two orthogonal axes, both harness-shaped by the adapter contract:
   Planned targets, in order: subagent definitions (`.claude/agents/`),
   CLAUDE.md / AGENTS.md memory files, slash commands, MCP tool
   configurations.
-- **Harness axis** - the core is agent-agnostic (see Architecture); a pi
-  adapter is the first planned second harness, and Agent Skills adoption
-  across tools means the same SKILL.md genomes recur across harnesses -
-  one shared ledger then measures a skill across all of them.
+- **Harness axis** - adapters for Claude Code, Codex, Cursor and pi ship
+  today (see Architecture); next is hardening them with live-session
+  validation, then further harnesses per the contract. Agent Skills
+  adoption across tools means the same SKILL.md genomes recur across
+  harnesses - the shared ledger measures a skill across all of them.
 
 Same Iron Rules everywhere: evidence gates, user-in-the-loop, rollback,
 whitelists.
