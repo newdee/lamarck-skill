@@ -23,10 +23,11 @@ const src = path.resolve(__dirname, '..');
 const CORE = [
   'SKILL.md', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'LICENSE',
   'config.example.json', 'gitignore.template',
-  'scripts/posttool-skill.js', 'scripts/stop-evaluate.js', 'scripts/selftest.js',
+  'scripts/posttool-skill.js', 'scripts/stop-evaluate.js', 'scripts/selftest.js', 'scripts/verify-adapter.js',
   'protocol/light-loop.md', 'protocol/adapter-contract.md',
-  'adapters/codex/posttool.js', 'adapters/codex/stop.js', 'adapters/codex/hooks.json', 'adapters/codex/README.md',
-  'adapters/cursor/posttool.js', 'adapters/cursor/stop.js', 'adapters/cursor/hooks.json', 'adapters/cursor/README.md',
+  'adapters/claude-code/manifest.json',
+  'adapters/codex/posttool.js', 'adapters/codex/stop.js', 'adapters/codex/hooks.json', 'adapters/codex/README.md', 'adapters/codex/manifest.json',
+  'adapters/cursor/posttool.js', 'adapters/cursor/stop.js', 'adapters/cursor/hooks.json', 'adapters/cursor/README.md', 'adapters/cursor/manifest.json',
   'adapters/pi/lamarck.ts', 'adapters/pi/README.md',
   'data/rubrics/README.md'
 ];

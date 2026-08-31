@@ -5,14 +5,15 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-93%2F93-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-97%2F97-brightgreen)](scripts/selftest.js)
 
-**生产环境的 skill 自进化系统。** 不是给某一个手工圈选的 skill 做一次性
+**agent skill 的生产环境自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
 满足条件时进化——编辑经你批准落地,或对你显式升到 auto 的 skill 由 replay
 把关、事后报告。lamarck 同时在运行中按同一套规则进化自己(自身永不 auto)。
 使用中获得的性状写回 skill 文件;长期无用的部分废退(修剪)。每个不可逆动作
-都经用户授权、落账、可回滚:**治理是全量进化敢做的前提**。
+都经用户授权、落账、可回滚:**治理是全量进化敢做的前提**。harness 无关:
+Claude Code、Codex、Cursor、pi 四家适配器随包,共写同一条证据账本。
 
 ```
 npx lamarck-skill
@@ -35,10 +36,11 @@ npx lamarck-skill
 
 ## 机制
 
-1. **记账**(PostToolUse hook):每次 skill 调用 → `data/pending.jsonl`,
-   附目标 skill 的内容哈希(`ver`),供按版本分窗做退化检测。
-2. **轻循环**(Stop hook):迷你评估协议内嵌在 hook reason 里——每回合不重载
-   SKILL.md。四维 verdict 对照该 skill rubric 中场景匹配的条目判定后落
+1. **记账**(collector——参考适配器里是 PostToolUse hook):每次 skill 调用
+   → `data/pending.jsonl`,附目标 skill 的内容哈希(`ver`),供按版本分窗做
+   退化检测。
+2. **轻循环**(trigger + executor——参考适配器里是 Stop hook):迷你评估协议
+   在回合末注入——每回合不重载 SKILL.md。四维 verdict 对照该 skill rubric 中场景匹配的条目判定后落
    `data/ledger.jsonl`;用户纠正 n=1 结晶为一条带出处的 rubric 条目;经验沉淀
    进 `data/learnings/`;回归用例进 `data/replays/`——既收割失败,也收割语料
    尚未覆盖其场景的 clean 调用。触发时机可配:每回合 / 仅手动 / 阈值批量
@@ -79,13 +81,20 @@ core 是 harness 无关的——数据文件、优化门、评估协议
 Cursor 与 pi 原生发现 `~/.claude/skills/`,Codex 可共享同一目录——lamarck
 观察的基因在各 harness 里就是同一批文件。
 
+**你的 harness 不在列表里?** 设计好的流程是"**agent 来写,lamarck 来验**"
+——这是新 harness 的**首次配置动作,一次做完长期生效**:契约文档就是接口
+说明,`node scripts/verify-adapter.js <manifest>` 就是确认实现的 testcase
+套件(schema、off 开关、自排除、阈值行为、协议完整性全覆盖)。契约的
+Self-service 段附了可直接粘给那个 agent 的 prompt;随包的三个命令型适配器
+过的就是同一套验证器。
+
 ## 证据
 
 诚实政策:**不做自评分数**(优化器用自家评委给自家产出打分证明不了任何事;
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **93/93**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **97/97**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
@@ -104,7 +113,7 @@ darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而�
 
 ## 安装
 
-一条命令——拷贝 skill、初始化本地配置、把两个 hook 接进
+一条命令——拷贝 skill、初始化本地配置、把参考适配器(Claude Code)接进
 `~/.claude/settings.json`(先备份、只增不删、幂等),装完自动跑 selftest
 自证:
 
@@ -113,7 +122,9 @@ npx lamarck-skill
 ```
 
 (等价:`npx github:newdee/lamarck-skill`)。装完重启 Claude Code(或开一次
-`/hooks`)让 hook 加载。卸载(摘 hook、保留文件与遥测):
+`/hooks`)让 hook 加载。其他 harness 手动接线,步骤见各适配器 README:
+[Codex](adapters/codex/README.md)、[Cursor](adapters/cursor/README.md)、
+[pi](adapters/pi/README.md)。卸载(摘 hook、保留文件与遥测):
 `npx lamarck-skill uninstall`。
 
 手动安装步骤见英文版 [README](README.md#install) 折叠段。停用开关:在 skill
@@ -150,8 +161,9 @@ npx lamarck-skill
 
 ## 环境要求
 
-任意平台的 Claude Code(Windows / macOS / Linux)——Node.js 18+ 与 git。
-hook 接在 `~/.claude/settings.json`(PostToolUse 匹配 `Skill`,Stop)。
+Node.js 18+ 与 git,任意平台(Windows / macOS / Linux),外加至少一个受支持
+的 harness:Claude Code(installer 自动接线)、Codex >= 0.142、Cursor、pi
+(按各自适配器 README 接线)。
 
 ## 相邻工作
 

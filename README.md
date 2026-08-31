@@ -5,12 +5,14 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-93%2F93-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-97%2F97-brightgreen)](scripts/selftest.js)
 
-**A production self-evolving system for Claude Code skills.** Not a
-one-shot optimizer for a hand-picked skill: install once, and every skill
-you have (hundreds, if you have them) keeps accumulating evidence from its
-real invocations — and evolves when the evidence gate opens. Edits land
+**A production self-evolving system for agent skills.** Not a one-shot
+optimizer for a hand-picked skill: install once, and every skill you have
+(hundreds, if you have them) keeps accumulating evidence from its real
+invocations — and evolves when the evidence gate opens. Harness-agnostic:
+adapters ship for Claude Code, Codex, Cursor and pi, all feeding one
+evidence ledger. Edits land
 with your approval, or — for skills you explicitly promote to auto —
 replay-gated and reported after the fact. lamarck evolves itself by the
 same rules while it runs (never on auto). Traits acquired through use are
@@ -40,11 +42,12 @@ to a 3-judge majority only on close calls) and human-in-the-loop checkpoints.
 
 ## Mechanism
 
-1. **Log** (PostToolUse hook): every skill invocation → `data/pending.jsonl`,
-   stamped with the target skill's content hash (`ver`) for per-version
-   health windows.
-2. **Light loop** (Stop hook): a mini evaluation protocol embedded in the hook
-   reason — no SKILL.md reload per turn. Four-dimension verdicts, judged
+1. **Log** (collector — a PostToolUse hook in the reference adapter): every
+   skill invocation → `data/pending.jsonl`, stamped with the target skill's
+   content hash (`ver`) for per-version health windows.
+2. **Light loop** (trigger + executor — a Stop hook in the reference
+   adapter): a mini evaluation protocol injected at turn end — no SKILL.md
+   reload per turn. Four-dimension verdicts, judged
    against the skill's own rubric (scenario-matched entries only) →
    `data/ledger.jsonl`; a user correction crystallizes into a rubric entry
    (n=1, provenance required); lessons → `data/learnings/`; regression cases →
@@ -95,6 +98,15 @@ Cursor and pi both discover `~/.claude/skills/` natively, and Codex can
 share the same directory - the genomes lamarck watches are literally the
 same files across harnesses.
 
+**On a harness we don't ship?** The intended workflow is *the agent
+writes, lamarck verifies* - a one-time first-configuration step: the
+contract is the interface documentation, and
+`node scripts/verify-adapter.js <manifest>` is the test suite that
+confirms the agent's implementation (schema, kill switch, self-exclusion,
+threshold behavior, protocol integrity). The contract's Self-service
+section carries a paste-ready prompt for that agent; the three shipped
+command-style adapters pass the same verifier.
+
 ## Evidence
 
 Honesty policy: **no self-graded scores** (an optimizer scoring its own output
@@ -102,7 +114,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **93/93**: hook
+   sandbox, zero contact with live telemetry. Currently **97/97**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -131,17 +143,20 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 ## Install
 
-One command — copies the skill, initializes local config, wires both hooks
-into `~/.claude/settings.json` (backup first, add-only, idempotent), then
-runs the selftest so the install proves itself:
+One command — copies the skill, initializes local config, wires the
+reference (Claude Code) adapter into `~/.claude/settings.json` (backup
+first, add-only, idempotent), then runs the selftest so the install proves
+itself:
 
 ```
 npx lamarck-skill
 ```
 
 (equivalent: `npx github:newdee/lamarck-skill`). Restart Claude Code (or open
-`/hooks` once) afterwards so the hooks load. Uninstall (unwires hooks, keeps
-files and telemetry): `npx lamarck-skill uninstall`
+`/hooks` once) afterwards so the hooks load. Other harnesses wire manually —
+each adapter's README has the steps: [Codex](adapters/codex/README.md),
+[Cursor](adapters/cursor/README.md), [pi](adapters/pi/README.md). Uninstall
+(unwires hooks, keeps files and telemetry): `npx lamarck-skill uninstall`
 
 <details><summary>Manual install</summary>
 
@@ -210,8 +225,9 @@ your skills are healthy, not that lamarck is idle — check
 
 ## Requirements
 
-Claude Code on any platform (Windows / macOS / Linux) — Node.js 18+ and git.
-Hooks wired in `~/.claude/settings.json` (PostToolUse on `Skill`, Stop).
+Node.js 18+ and git, any platform (Windows / macOS / Linux), plus at least
+one supported harness: Claude Code (wired by the installer), Codex >= 0.142,
+Cursor, or pi (wired per their adapter READMEs).
 
 ## Adjacent work
 

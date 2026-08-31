@@ -90,6 +90,49 @@ A harness with no injection path at all still fits the contract at the
 `manual` tier: collect continuously, evaluate when the user asks that
 harness's model to run the protocol.
 
+## Self-service: have your agent write the adapter
+
+The private layer of every harness is its hook/event mechanism - exactly
+the part the harness's own agent knows best. So the intended workflow for
+an unsupported harness is: **the agent writes, lamarck verifies.** This is
+a first-time setup step: done once per harness, then the adapter just runs.
+
+Paste this to the new harness's agent, verbatim:
+
+> Read `<lamarck-dir>/protocol/adapter-contract.md` and this harness's own
+> hook/extension documentation. Write the lamarck adapter for this harness
+> under `<lamarck-dir>/adapters/<harness>/` (command-style collector and
+> trigger) plus a `manifest.json` whose samples are this harness's real
+> hook payload shapes. Run
+> `node <lamarck-dir>/scripts/verify-adapter.js <that manifest>` and
+> iterate until it is green. Then wire the hooks into this harness's
+> config, show me the wiring, and do not disable any existing hooks.
+
+1. Tell your agent to read this contract and its harness's hook docs, then
+   write a command-style collector and trigger (stdin JSON in, stdout out)
+   under `adapters/<harness>/`.
+2. Have it write a `manifest.json` beside them - the format is documented
+   at the top of `scripts/verify-adapter.js`; the `samples` must be REAL
+   stdin shapes of that harness, plus a lamarck self-invocation and a
+   noise sample.
+3. Gate on conformance:
+
+   ```
+   node scripts/verify-adapter.js adapters/<harness>/manifest.json
+   ```
+
+   The verifier runs in an isolated sandbox and checks the whole contract:
+   schema-complete pending lines, garbage tolerance, the `off` switch,
+   self-exclusion, threshold behavior, and that the injected protocol
+   carries every load-bearing clause of the single source. Green means
+   wire it; red names what is missing.
+
+The three shipped command-style adapters (`claude-code`, `codex`,
+`cursor`) each carry such a manifest and pass the same verifier - it is
+the spec's executable half. In-process adapters (like the pi extension)
+are outside the verifier's reach; validate those by comparing their
+injected text against the reference adapter's on identical state.
+
 ## Non-negotiables for any adapter
 
 - One telemetry store per machine; adapters share it (the ledger is the

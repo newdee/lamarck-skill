@@ -1,7 +1,7 @@
 {
   "name": "lamarck-skill",
-  "version": "5.9.0",
-  "description": "生产环境的 skill 自进化系统 | A production self-evolving system for Claude Code: every installed skill keeps accumulating evidence from real usage and evolves when the gate opens - governed, user-authorized, reversible.",
+  "version": "5.10.0",
+  "description": "agent skill 的生产环境自进化系统 | A production self-evolving system for agent skills: every installed skill keeps accumulating evidence from real usage and evolves when the gate opens - governed, user-authorized, reversible. Adapters for Claude Code, Codex, Cursor and pi.",
   "bin": {
     "lamarck-skill": "bin/install.js"
   },
@@ -9,6 +9,7 @@
     "bin/",
     "scripts/",
     "protocol/",
+    "adapters/claude-code/",
     "adapters/codex/",
     "adapters/cursor/",
     "adapters/pi/",
@@ -28,5 +29,5 @@
     "url": "git+https://github.com/newdee/lamarck-skill.git"
   },
   "homepage": "https://github.com/newdee/lamarck-skill#readme",
-  "keywords": ["claude-code", "agent-skills", "skill", "self-improving", "hooks"]
+  "keywords": ["agent-skills", "skill", "self-improving", "hooks", "claude-code", "codex", "cursor", "pi"]
 }

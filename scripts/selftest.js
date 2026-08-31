@@ -322,6 +322,18 @@ try {
   check('static: every adapter README states its verification status honestly',
     ['codex', 'cursor', 'pi'].every(ad =>
       fs.readFileSync(path.join(repo, 'adapters', ad, 'README.md'), 'utf8').includes('Verification status')));
+  // Conformance verifier: the executable half of the adapter contract.
+  // Every shipped command-style adapter must pass it end to end.
+  for (const ad of ['claude-code', 'codex', 'cursor']) {
+    const vr = spawnSync(process.execPath,
+      [path.join(repo, 'scripts', 'verify-adapter.js'), path.join(repo, 'adapters', ad, 'manifest.json')],
+      { encoding: 'utf8', timeout: 120000 });
+    const sum = ((vr.stdout || '').match(/conformance checks passed/) || [])[0];
+    check(`conformance: ${ad} adapter passes the verifier end to end`, vr.status === 0 && !!sum);
+  }
+  check('static: contract documents the agent-writes-lamarck-verifies workflow with a paste-ready prompt',
+    contract.includes('verify-adapter.js') && contract.includes('the agent writes, lamarck verifies') &&
+    contract.includes('Paste this to the new harness'));
   // Bilingual README sync: the zh-CN version must exist, cross-link, and
   // agree with the English one on the load-bearing facts.
   const zhPath = path.join(repo, 'README.zh-CN.md');
