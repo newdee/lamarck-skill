@@ -1,18 +1,49 @@
 {
   "name": "claude-code",
   "collector": {
-    "command": ["node", "scripts/posttool-skill.js"],
+    "command": [
+      "node",
+      "scripts/posttool-skill.js"
+    ],
     "samples": [
       {
-        "input": { "session_id": "cc1", "tool_name": "Skill", "tool_input": { "skill": "demo-skill", "args": "do the thing" }, "transcript_path": "/tmp/cc.jsonl" },
-        "expect": { "skill": "demo-skill", "session": "cc1" }
+        "input": {
+          "session_id": "cc1",
+          "tool_name": "Skill",
+          "tool_input": {
+            "skill": "demo-skill",
+            "args": "do the thing"
+          },
+          "transcript_path": "/tmp/cc.jsonl"
+        },
+        "expect": {
+          "skill": "demo-skill",
+          "session": "cc1",
+          "harness": "claude-code"
+        }
       }
     ],
-    "self_sample": { "session_id": "cc1", "tool_name": "Skill", "tool_input": { "skill": "lamarck", "args": "" } },
-    "noise_sample": { "session_id": "cc1", "tool_name": "Bash", "tool_input": { "command": "ls" } }
+    "self_sample": {
+      "session_id": "cc1",
+      "tool_name": "Skill",
+      "tool_input": {
+        "skill": "lamarck",
+        "args": ""
+      }
+    },
+    "noise_sample": {
+      "session_id": "cc1",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "ls"
+      }
+    }
   },
   "trigger": {
-    "command": ["node", "scripts/stop-evaluate.js"],
+    "command": [
+      "node",
+      "scripts/stop-evaluate.js"
+    ],
     "input_template": "{\"session_id\":\"$SESSION\",\"stop_hook_active\":false}"
   }
 }

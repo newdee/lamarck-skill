@@ -1,18 +1,49 @@
 {
   "name": "cursor",
   "collector": {
-    "command": ["node", "adapters/cursor/posttool.js"],
+    "command": [
+      "node",
+      "adapters/cursor/posttool.js"
+    ],
     "samples": [
       {
-        "input": { "conversation_id": "cu1", "hook_event_name": "postToolUse", "tool_call": { "path": "/home/u/.claude/skills/demo-skill/SKILL.md" }, "transcript_path": "/tmp/cu.jsonl" },
-        "expect": { "skill": "demo-skill", "session": "cu1" }
+        "input": {
+          "conversation_id": "cu1",
+          "hook_event_name": "postToolUse",
+          "tool_call": {
+            "path": "/home/u/.claude/skills/demo-skill/SKILL.md"
+          },
+          "transcript_path": "/tmp/cu.jsonl"
+        },
+        "expect": {
+          "skill": "demo-skill",
+          "session": "cu1",
+          "harness": "cursor"
+        }
       }
     ],
-    "self_sample": { "conversation_id": "cu1", "tool_call": { "path": "/home/u/.claude/skills/lamarck/SKILL.md" } },
-    "noise_sample": { "conversation_id": "cu1", "transcript_path": "/skills/decoy/SKILL.md", "workspace_roots": ["/skills/decoy2/SKILL.md"], "tool_call": { "path": "/x/readme.md" } }
+    "self_sample": {
+      "conversation_id": "cu1",
+      "tool_call": {
+        "path": "/home/u/.claude/skills/lamarck/SKILL.md"
+      }
+    },
+    "noise_sample": {
+      "conversation_id": "cu1",
+      "transcript_path": "/skills/decoy/SKILL.md",
+      "workspace_roots": [
+        "/skills/decoy2/SKILL.md"
+      ],
+      "tool_call": {
+        "path": "/x/readme.md"
+      }
+    }
   },
   "trigger": {
-    "command": ["node", "adapters/cursor/stop.js"],
+    "command": [
+      "node",
+      "adapters/cursor/stop.js"
+    ],
     "input_template": "{\"conversation_id\":\"$SESSION\",\"hook_event_name\":\"stop\"}"
   }
 }

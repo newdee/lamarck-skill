@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.12"
+  version: "5.13"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -101,7 +101,9 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
 - **场景围栏(防震荡)**:证据全部来自单一场景标签的提案,只能做**场景分支式
   增量**——新增"当 <场景> 时……"的条件段,不得改写共享核心;改写共享核心需要
   **≥2 个不同场景**的证据。B 场景的优化因此伤不到 A 场景依赖的部分,切回来
-  不会退化。
+  不会退化。**来源 harness 即场景标签之一**(账本的 `harness` 字段):同一
+  SKILL.md 被多家 agent 共用时,只有某一家的证据只能加该家的条件分支,跨
+  harness 的互相影响由此围栏拦截,裁决仍归用户三选一。
 - **全场景 replay**:任何编辑的 replay 验证必须包含**其他场景**的既有用例,
   不只触发场景——replay 语料就是全部历史场景的记忆,"切回旧场景"在施工前就被
   预演过。
@@ -215,8 +217,9 @@ better / tie → 保留,解除冻结。
 `data/pending.jsonl`(待处理,含 `ver` 基因版本戳与 `transcript` 执行日志指针——
 执行日志不自建,指向 Claude Code 自己的会话 transcript,按需读切片)·
 `data/ledger.jsonl`(账本,格式
-`{"ts","session","skill","ver","trigger_fit","gaps","outcome","friction","note"}`,
-评估时把 pending 条目的 `ver` 原样带入)·
+`{"ts","session","skill","ver","harness","trigger_fit","gaps","outcome","friction","note"}`,
+评估时把 pending 条目的 `ver` 与 `harness` 原样带入;无 harness 字段的旧记录
+视为 claude-code)·
 `data/learnings/<skill>.md`(逐 skill 经验)· `data/rubrics/<skill>.md`(逐 skill 尺子,
 git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,仅本地)·
 `data/maturity.json`(逐 skill 成熟度状态,评估时维护)·

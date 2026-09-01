@@ -96,6 +96,7 @@ export default function (pi: ExtensionAPI) {
         skill: m[1],
         args: `pi:${String(event?.toolName ?? "")} ${args}`.trim().slice(0, 200),
         ver,
+        harness: "pi",
         transcript: "" // pi session file path is not portably exposed; channel B falls back to archive
       }) + "\n", "utf8");
     } catch (e) { logErr(e); }

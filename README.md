@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-108%2F108-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-116%2F116-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for agent skills.** Not a one-shot
 optimizer for a hand-picked skill: install once, and every skill you have
@@ -85,7 +85,11 @@ harness plugs in through an **adapter** with three roles - collector
 executor (a model that runs the protocol) - specified in
 [protocol/adapter-contract.md](protocol/adapter-contract.md). All adapters
 share one telemetry store, so a skill exercised from several harnesses
-accumulates one evidence trail.
+accumulates one evidence trail — and every record carries a `harness` tag.
+The scenario-fencing rules treat cross-harness evidence as cross-scenario
+evidence: one harness's evidence can only add a branch for that harness,
+never rewrite what another harness relies on. Detection is the machine's
+job; the verdict stays yours (the same three-choice gate).
 
 | Harness | Mechanism | Roles | Status |
 |---|---|---|---|
@@ -117,7 +121,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **108/108**: hook
+   sandbox, zero contact with live telemetry. Currently **116/116**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop

@@ -37,7 +37,8 @@ try {
     session_id: String(data.session_id || ''),
     tool_name: 'Skill',
     tool_input: { skill: m[1], args: `codex:${String(data.tool_name || '')}` },
-    transcript_path: String(data.transcript_path || '')
+    transcript_path: String(data.transcript_path || ''),
+    lamarck_harness: 'codex'
   });
   spawnSync(process.execPath, [REF], { input: synthesized, timeout: 8000 });
 } catch { /* never break the harness */ }

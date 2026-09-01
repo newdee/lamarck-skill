@@ -54,6 +54,7 @@ try {
   check('post: valid call logged, exit 0', rc === 0 && pendingLines().length === 1);
   const rec = lastRec();
   check('post: fields ts/session/skill/args/ver present', rec.session === 's1' && rec.skill === 'fakeskill' && rec.args === 'hello' && rec.ver !== undefined);
+  check('post: harness defaults to claude-code on a real hook payload', rec.harness === 'claude-code');
   check('post: transcript pointer recorded when provided', rec.transcript === 'C:/tmp/session.jsonl');
   check('post: ver is 8-hex for resolvable skill', /^[0-9a-f]{8}$/.test(rec.ver));
   postCall('{"session_id":"s1","tool_name":"Skill","tool_input":{"skill":"fakeskill","args":"again"}}');
@@ -102,8 +103,12 @@ try {
   check('stop: at threshold blocks (5/5)', o.includes('"decision":"block"'));
   check('stop: reason states mode and needed', o.includes('mode=threshold, needed=5'));
   check('stop: reason lists session and skills', o.includes('session_id=s2') && o.includes('sk1'));
-  check('stop: reason embeds protocol (4 dims, escalate, user gate, replay, ver)',
-    o.includes('trigger_fit') && o.includes('ESCALATE ONLY IF') && o.includes('AskUserQuestion') && o.includes('replays') && o.includes('carry ver over'));
+  check('stop: reason embeds protocol (4 dims, escalate, user gate, replay, ver+harness)',
+    o.includes('trigger_fit') && o.includes('ESCALATE ONLY IF') && o.includes('AskUserQuestion') && o.includes('replays') && o.includes('carry ver and harness over'));
+  check('stop: reason fences cross-harness evidence as cross-scenario evidence',
+    o.includes('cross-harness evidence is cross-scenario evidence') && o.includes('add a branch for that harness'));
+  check('stop: reason downgrades proposals on harnesses that cannot ask or judge',
+    o.includes('cannot ask a three-way') && o.includes('suggestions/<skill>.md'));
   check('stop: reason embeds maturity clause (stable-skip, wake, sample)',
     o.includes('maturity.json') && o.includes('stable-skip') && o.includes('wakes the skill back to active') && o.includes('stability.sample'));
   // The light loop is the ONLY automatic path that grows rubrics and replay
@@ -186,6 +191,7 @@ try {
   let rec2 = pendingLines().length ? lastRec() : null;
   check('codex posttool: SKILL.md read becomes a pending line with session and transcript',
     sr.status === 0 && rec2 && rec2.skill === 'myskill' && rec2.session === 'cx1' && rec2.transcript === 'C:/t/cx.jsonl' && rec2.args.startsWith('codex:read'));
+  check('codex posttool: harness stamped as codex', rec2 && rec2.harness === 'codex');
   shim('codex', 'posttool.js', '{"session_id":"cx1","tool_name":"read","tool_input":{"path":"C:\\\\Users\\\\u\\\\.claude\\\\skills\\\\winskill\\\\SKILL.md"}}');
   check('codex posttool: windows backslash path detected (JSON-escaped haystack)',
     pendingLines().length === 2 && lastRec().skill === 'winskill');
@@ -199,6 +205,7 @@ try {
   rec2 = lastRec();
   check('cursor posttool: conversation_id maps to session, skill extracted',
     sr.status === 0 && rec2.skill === 'webskill' && rec2.session === 'cu1' && rec2.transcript === '/tmp/cu.jsonl');
+  check('cursor posttool: harness stamped as cursor', rec2.harness === 'cursor');
   shim('cursor', 'posttool.js', '{"conversation_id":"cu1","transcript_path":"/skills/decoy/SKILL.md","workspace_roots":["/skills/decoy2/SKILL.md"],"tool_call":{"path":"/x/readme.md"}}');
   check('cursor posttool: SKILL.md inside transcript/workspace fields is not an activation', pendingLines().length === 3);
   // stop shims: fill to the threshold for one codex session, then evaluate
@@ -229,6 +236,7 @@ try {
   let grec = lastRec();
   check('generic posttool: thread_id + arbitrary nesting extracted',
     grec.skill === 'alpha-skill' && grec.session === 'g1');
+  check('generic posttool: harness stamped (generic default, LAMARCK_HARNESS overridable)', grec.harness === 'generic');
   shim('generic', 'posttool.js', '{"sessionId":"g1","transcriptPath":"/skills/decoy/SKILL.md","workspaceFolders":["/skills/d2/SKILL.md"],"note":"no activation here"}');
   check('generic posttool: transcript/workspace variants excluded from the scan', lastRec().skill === 'alpha-skill');
   shim('generic', 'posttool.js', '{"session":"g1","x":{"p":"/s/beta-skill/SKILL.md"}}');
@@ -315,6 +323,12 @@ try {
     skillMd.includes('结晶进 `data/rubrics/') && skillMd.includes('场景尚未被语料覆盖的 clean'));
   check('static: SKILL.md documents the colon->__ filename rule for plugin skills',
     skillMd.includes('caveman__caveman-help') && skillMd.includes('文件名规则'));
+  check('static: SKILL.md ledger schema and fencing carry the harness dimension',
+    skillMd.includes('"harness"') && skillMd.includes('harness 即场景标签之一'));
+  const contractEarly = fs.readFileSync(path.join(repo, 'protocol', 'adapter-contract.md'), 'utf8');
+  check('static: contract schema documents the harness field and the executor downgrade rule',
+    contractEarly.includes('"harness"') && contractEarly.includes('cross-harness evidence as cross-scenario evidence') &&
+    contractEarly.includes('downgrades every gate-passing proposal'));
   // Single-source protocol: the file must exist with its one placeholder,
   // the adapter must reference it, and the adapter contract must describe
   // the collector's pending-line fields so a foreign adapter can implement

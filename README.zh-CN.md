@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-108%2F108-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-116%2F116-brightgreen)](scripts/selftest.js)
 
 **agent skill 的生产环境自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -69,7 +69,10 @@ core 是 harness 无关的——数据文件、优化门、评估协议
 (每次调用追加一行 pending)、trigger(决定何时评估)、executor(执行协议
 的模型)——契约见
 [protocol/adapter-contract.md](protocol/adapter-contract.md)。全部适配器
-共享同一遥测库:一个 skill 在多个 harness 被使用,证据汇进同一条账本。
+共享同一遥测库:一个 skill 在多个 harness 被使用,证据汇进同一条账本——
+且每条记录带 `harness` 标签。场景围栏把跨 harness 证据当跨场景证据:某一家
+的证据只能给该家加条件分支,改不动别家依赖的共核。冲突检测归机器,裁决归你
+(还是那道三选一)。
 
 | Harness | 机制 | 角色 | 状态 |
 |---|---|---|---|
@@ -96,7 +99,7 @@ Self-service 段附了可直接粘给那个 agent 的 prompt,并规定**三次�
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **108/108**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **116/116**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被

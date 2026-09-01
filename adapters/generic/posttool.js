@@ -41,7 +41,8 @@ try {
     session_id: pick(data, ['session_id', 'conversation_id', 'thread_id', 'sessionId', 'session']),
     tool_name: 'Skill',
     tool_input: { skill: m[1], args: `generic:${pick(data, ['tool_name', 'toolName', 'hook_event_name'])}` },
-    transcript_path: pick(data, ['transcript_path', 'transcriptPath', 'transcript'])
+    transcript_path: pick(data, ['transcript_path', 'transcriptPath', 'transcript']),
+    lamarck_harness: process.env.LAMARCK_HARNESS || 'generic'
   });
   spawnSync(process.execPath, [REF], { input: synthesized, timeout: 8000 });
 } catch { /* never break the harness */ }

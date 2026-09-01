@@ -1,22 +1,62 @@
 {
   "name": "codex",
   "collector": {
-    "command": ["node", "adapters/codex/posttool.js"],
+    "command": [
+      "node",
+      "adapters/codex/posttool.js"
+    ],
     "samples": [
       {
-        "input": { "session_id": "cx1", "hook_event_name": "PostToolUse", "tool_name": "read", "tool_input": { "path": "C:/Users/u/.codex/skills/demo-skill/SKILL.md" }, "transcript_path": "/tmp/cx.jsonl" },
-        "expect": { "skill": "demo-skill", "session": "cx1" }
+        "input": {
+          "session_id": "cx1",
+          "hook_event_name": "PostToolUse",
+          "tool_name": "read",
+          "tool_input": {
+            "path": "C:/Users/u/.codex/skills/demo-skill/SKILL.md"
+          },
+          "transcript_path": "/tmp/cx.jsonl"
+        },
+        "expect": {
+          "skill": "demo-skill",
+          "session": "cx1",
+          "harness": "codex"
+        }
       },
       {
-        "input": { "session_id": "cx1", "tool_name": "read", "tool_input": { "path": "C:\\Users\\u\\.claude\\skills\\win-skill\\SKILL.md" } },
-        "expect": { "skill": "win-skill", "session": "cx1" }
+        "input": {
+          "session_id": "cx1",
+          "tool_name": "read",
+          "tool_input": {
+            "path": "C:\\Users\\u\\.claude\\skills\\win-skill\\SKILL.md"
+          }
+        },
+        "expect": {
+          "skill": "win-skill",
+          "session": "cx1",
+          "harness": "codex"
+        }
       }
     ],
-    "self_sample": { "session_id": "cx1", "tool_name": "read", "tool_input": { "path": "/home/u/.claude/skills/lamarck/SKILL.md" } },
-    "noise_sample": { "session_id": "cx1", "tool_name": "read", "tool_input": { "path": "/home/u/notes/README.md" } }
+    "self_sample": {
+      "session_id": "cx1",
+      "tool_name": "read",
+      "tool_input": {
+        "path": "/home/u/.claude/skills/lamarck/SKILL.md"
+      }
+    },
+    "noise_sample": {
+      "session_id": "cx1",
+      "tool_name": "read",
+      "tool_input": {
+        "path": "/home/u/notes/README.md"
+      }
+    }
   },
   "trigger": {
-    "command": ["node", "adapters/codex/stop.js"],
+    "command": [
+      "node",
+      "adapters/codex/stop.js"
+    ],
     "input_template": "{\"session_id\":\"$SESSION\",\"hook_event_name\":\"Stop\"}"
   }
 }

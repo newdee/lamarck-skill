@@ -32,8 +32,13 @@ increment the streak, except every Nth call (stability.sample, default 5)
 still gets the full evaluation; any correction, gap, ver change or novel
 scenario wakes the skill back to active. For active skills: append one JSON
 line per entry to data/ledger.jsonl with fields
-{ts,session,skill,ver,trigger_fit,gaps,outcome,friction,note} (carry ver
-over from the pending record); if the user corrected the skill this turn,
+{ts,session,skill,ver,harness,trigger_fit,gaps,outcome,friction,note}
+(carry ver and harness over from the pending record; a record without a
+harness field is 'claude-code'). Treat the harness as part of the
+scenario: cross-harness evidence is cross-scenario evidence for the
+fencing rules, so an edit justified by one harness's evidence may only
+add a branch for that harness, never rewrite what other harnesses rely
+on. If the user corrected the skill this turn,
 crystallize that correction into one rubric entry in
 data/rubrics/<skill>.md - n=1 suffices, format and rules in
 data/rubrics/README.md (every entry MUST cite its ledger ts and carry a
@@ -57,5 +62,6 @@ ESCALATE ONLY IF, after logging, some skill has >=2 independent invocations
 with same-type gaps in the ledger: then read SKILL.md and run its
 optimization gate. NEVER apply an edit to any skill without first asking
 the user (AskUserQuestion: apply / keep as suggestion / reject); in a
-non-interactive session, write the proposal to suggestions/<skill>.md
-instead of editing.
+non-interactive session, or when this harness cannot ask a three-way
+choice or spawn the judge subagents the gate's validation needs, write
+the proposal to suggestions/<skill>.md instead of editing.

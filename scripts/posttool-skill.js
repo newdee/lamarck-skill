@@ -59,6 +59,11 @@ try {
     skill,
     args,
     ver,
+    // Which harness observed this invocation. Shims set lamarck_harness on
+    // the synthesized event; a real Claude Code hook payload never carries
+    // it, so the default names the reference adapter. Fencing treats
+    // cross-harness evidence as cross-scenario evidence.
+    harness: String(data.lamarck_harness || 'claude-code'),
     // Pointer to Claude Code's own session transcript - the full execution
     // log already exists there; we store the pointer, never a copy.
     // Decays with the transcript cleanup period; consumers must fall back.

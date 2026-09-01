@@ -85,10 +85,12 @@ try {
     const rec = now.length ? JSON.parse(now[now.length - 1]) : null;
     check(`C1.${i} sample logs one schema-complete pending line`,
       r.status === 0 && now.length === before + 1 && rec &&
-      ['ts', 'session', 'skill', 'args', 'ver', 'transcript'].every(k => k in rec) &&
+      ['ts', 'session', 'skill', 'args', 'ver', 'harness', 'transcript'].every(k => k in rec) &&
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(rec.ts) && rec.args.length <= 200 &&
-      rec.skill === s.expect.skill && rec.session === s.expect.session,
-      rec ? `got skill=${rec.skill} session=${rec.session}` : 'nothing logged');
+      rec.skill === s.expect.skill && rec.session === s.expect.session &&
+      typeof rec.harness === 'string' && rec.harness.length > 0 &&
+      (!s.expect.harness || rec.harness === s.expect.harness),
+      rec ? `got skill=${rec.skill} session=${rec.session} harness=${rec.harness}` : 'nothing logged');
   }
   let n0 = lines().length;
   check('C2 garbage stdin: exit 0, nothing logged',

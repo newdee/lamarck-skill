@@ -23,6 +23,7 @@ append one JSON line to `data/pending.jsonl`:
 | `"skill"` | string | the invoked skill's real name, colon and all |
 | `"args"` | string | invocation arguments, truncated to 200 chars |
 | `"ver"` | string | 8-hex md5 of the target skill's SKILL.md at invocation time; `""` if unresolvable |
+| `"harness"` | string | which harness observed this invocation (e.g. `codex`, `pi`); absent/empty means `claude-code`. The fencing rules treat cross-harness evidence as cross-scenario evidence, so this tag is what keeps one harness's edits from rewriting what another relies on |
 | `"transcript"` | string | absolute path to the harness's own execution log for this session; `""` if none. Store the pointer, never a copy |
 
 Collector rules: append-only; must never fail the harness (swallow errors,
@@ -60,7 +61,10 @@ instead).
 Escalation (>=2 same-type gaps) loads `SKILL.md` and runs the optimization
 gate. Every executor is bound by the Iron Rules, whatever the harness: no
 edit without the user's choice (or an explicitly granted auto tier with a
-non-empty replay corpus), everything ledgered, everything reversible.
+non-empty replay corpus), everything ledgered, everything reversible. An
+executor whose harness cannot ask a three-way choice or spawn judge
+subagents never edits in place - it downgrades every gate-passing proposal
+to `suggestions/<skill>.md`, the same rule as non-interactive sessions.
 
 ## Adapter notes per harness
 

@@ -35,7 +35,8 @@ try {
     session_id: String(data.conversation_id || data.session_id || ''),
     tool_name: 'Skill',
     tool_input: { skill: m[1], args: `cursor:${String(data.hook_event_name || '')}` },
-    transcript_path: String(data.transcript_path || '')
+    transcript_path: String(data.transcript_path || ''),
+    lamarck_harness: 'cursor'
   });
   spawnSync(process.execPath, [REF], { input: synthesized, timeout: 8000 });
 } catch { /* never break the harness */ }

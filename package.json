@@ -1,6 +1,6 @@
 {
   "name": "lamarck-skill",
-  "version": "5.12.0",
+  "version": "5.13.0",
   "description": "agent skill 的生产环境自进化系统 | A production self-evolving system for agent skills: every installed skill keeps accumulating evidence from real usage and evolves when the gate opens - governed, user-authorized, reversible. Adapters for Claude Code, Codex, Cursor and pi.",
   "bin": {
     "lamarck-skill": "bin/install.js"
