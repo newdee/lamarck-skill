@@ -11,9 +11,10 @@ jobs:
       id-token: write   # OIDC for npm trusted publishing - no stored secrets
       contents: write   # create the GitHub Release for the tag
     steps:
+      # No fetch-tags here: on a tag-push event checkout already fetches the
+      # triggering tag ref (fetch-tags would fetch the same refspec twice and
+      # fail with "Cannot fetch both ... to refs/tags/<tag>").
       - uses: actions/checkout@v4
-        with:
-          fetch-tags: true   # the annotated tag message becomes the release notes
       - uses: actions/setup-node@v4
         with:
           node-version: 24
