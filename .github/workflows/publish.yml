@@ -31,8 +31,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # checkout peels the tag ref to a commit, so %(contents) would read
+          # the commit message; re-fetch the real tag object first.
+          git fetch origin --no-tags -f "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
           notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME")"
-          if [ -n "$notes" ]; then
+          if [ "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME")" = "tag" ] && [ -n "$notes" ]; then
             gh release create "$GITHUB_REF_NAME" --title "lamarck $GITHUB_REF_NAME" --notes "$notes" --latest
           else
             gh release create "$GITHUB_REF_NAME" --title "lamarck $GITHUB_REF_NAME" --generate-notes --latest
