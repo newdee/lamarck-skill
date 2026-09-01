@@ -109,6 +109,10 @@ try {
     o.includes('cross-harness evidence is cross-scenario evidence') && o.includes('add a branch for that harness'));
   check('stop: reason downgrades proposals on harnesses that cannot ask or judge',
     o.includes('cannot ask a three-way') && o.includes('suggestions/<skill>.md'));
+  // Context-pollution discipline: conclusions go to the data files, the
+  // conversation gets at most a two-line summary.
+  check('stop: reason demands quiet execution with a tiny visible summary',
+    o.includes('QUIETLY') && o.includes('at most one or two summary lines'));
   check('stop: reason embeds maturity clause (stable-skip, wake, sample)',
     o.includes('maturity.json') && o.includes('stable-skip') && o.includes('wakes the skill back to active') && o.includes('stability.sample'));
   // The light loop is the ONLY automatic path that grows rubrics and replay
@@ -341,6 +345,11 @@ try {
     (protoBody.match(/\{\{BACKLOG\}\}/g) || []).length === 1 && (protoBody.match(/\{\{/g) || []).length === 1);
   check('static: protocol body keeps paths relative (no absolute or backslashed paths)',
     !/[A-Za-z]:\\/.test(protoBody) && protoBody.includes('data/pending.jsonl'));
+  // The protocol is injected on every trigger; unlike SKILL.md it had no
+  // growth budget until it quietly crossed 3.5k chars. Hard ceiling now -
+  // raising it is a deliberate decision, not a side effect.
+  check('static: injected protocol body stays under the 3600-char budget',
+    protoBody.replace(/\s+/g, ' ').trim().length <= 3600);
   check('static: stop hook injects the single-source protocol file',
     fs.readFileSync(path.join(repo, 'scripts', 'stop-evaluate.js'), 'utf8').includes("'light-loop.md'"));
   const contract = fs.readFileSync(path.join(repo, 'protocol', 'adapter-contract.md'), 'utf8');
@@ -392,6 +401,8 @@ try {
   check('static: manual /lamarck opens with the wiring self-check for users who never ran the installer',
     skillMd.includes('接线自检') && skillMd.includes('接线指引') &&
     skillMd.includes('接线正常、数据未至') && skillMd.includes('不发接线指引'));
+  check('static: historical backlog drain is delegated to a subagent (transcript evidence travels, context does not)',
+    skillMd.includes('派独立 subagent 清算') && skillMd.includes('主上下文只收每条一行结论'));
   // Bilingual README sync: the zh-CN version must exist, cross-link, and
   // agree with the English one on the load-bearing facts.
   const zhPath = path.join(repo, 'README.zh-CN.md');

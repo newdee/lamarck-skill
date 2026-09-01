@@ -18,7 +18,10 @@
   - This protocol is governed by the same rules as SKILL.md: changes go
     through the optimization gate and explicit user approval.
 -->
-Do this now WITHOUT reloading SKILL.md. For each pending entry in
+Do this now WITHOUT reloading SKILL.md, and QUIETLY: conclusions go to the
+data files, not the conversation - visible narration for the entire
+evaluation is at most one or two summary lines after your normal reply.
+For each pending entry in
 data/pending.jsonl belonging to this session, using only real in-context
 evidence (<=5 lines each) and, where data/rubrics/<skill>.md exists, judging
 against the entries of that rubric whose scenario tag matches this call:

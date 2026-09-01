@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.13"
+  version: "5.14"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -197,10 +197,12 @@ better / tie → 保留,解除冻结。
   `data/` 下 pending 与 ledger 皆无 → 报**接线正常、数据未至**(hook 重启后
   才加载;验活:用任一 skill 看 pending.jsonl 是否长一行)——不是配置错误,
   不发接线指引。两关都过 → 处理全部 pending + 沉淀 learnings/rubric + 过优化门。本会话条目做
-  四维评估;**历史会话条目先试 transcript 指针**:记录的 `transcript` 路径若仍
-  存在(30 天清理期内),Read 其中该次调用附近的片段(按 ts 与 skill 名定位,
-  只取所需切片,不整读),据真实执行痕迹做四维评估,并抽客观 friction(工具调用
-  数、报错/重试次数、耗时);指针失效或定位不到,才退回按 skill 聚合归档
+  四维评估;**历史会话条目派独立 subagent 清算**(其证据在 transcript 文件里、
+  不在本会话上下文,外置零证据损失;主上下文只收每条一行结论,防污染):
+  subagent 先试 transcript 指针——记录的 `transcript` 路径若仍存在(30 天
+  清理期内),Read 其中该次调用附近的片段(按 ts 与 skill 名定位,只取所需
+  切片,不整读),据真实执行痕迹做四维评估,并抽客观 friction(工具调用数、
+  报错/重试次数、耗时);指针失效或定位不到,才退回按 skill 聚合归档
   `{"outcome":"archived","note":"N 次调用,args 样本"}`。
 - `audit <skill>` — 汇总该 skill 全部证据,产出编辑提案(仍走优化门+用户在环)。
 - `stats` — 只看账:各 skill 调用频次、corrected 率、gap 排行。
