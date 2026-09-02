@@ -27,17 +27,18 @@ evidence (<=5 lines each) and, where data/rubrics/<skill>.md exists, judging
 against the entries of that rubric whose scenario tag matches this call:
 judge trigger_fit (ok|false-positive|wrong-skill), gaps[] (things the
 skill's instructions lacked, each 'missing X, caused Y'), outcome
-(clean|corrected|failed; quote user corrections in note), friction (wasted
-steps, may be empty). First consult data/maturity.json: for skills marked
+(clean|corrected|failed; a correction counts only with the user's line
+quoted verbatim in note), friction (wasted steps, may be empty). First consult data/maturity.json: for skills marked
 stable, each entry needs only a glance - if this turn shows no user
 correction or anomaly, ledger one line {outcome:'stable-skip',ver:...} and
 increment the streak, except every Nth call (stability.sample, default 5)
 still gets the full evaluation; any correction, gap, ver change or novel
 scenario wakes the skill back to active. For active skills: append one JSON
 line per entry to data/ledger.jsonl with fields
-{ts,session,skill,ver,harness,trigger_fit,gaps,outcome,friction,note}
+{ts,session,skill,ver,harness,objective,trigger_fit,gaps,outcome,friction,note}
 (carry ver and harness over from the pending record; a record without a
-harness field is 'claude-code'). Treat the harness as part of the
+harness field is 'claude-code'; objective is the injected code-counted
+JSON for that entry, copied verbatim or null). Treat the harness as part of the
 scenario: cross-harness evidence is cross-scenario evidence for the
 fencing rules, so an edit justified by one harness's evidence may only
 add a branch for that harness, never rewrite what other harnesses rely
@@ -49,10 +50,9 @@ scenario tag; superseded entries move to attic, never deleted); if a
 reusable lesson emerged, append it to data/learnings/<skill>.md; distill a
 regression case {essence,expect,src} into data/replays/<skill>.jsonl for
 every corrected/failed entry, AND for a clean entry whose scenario is not
-yet represented in that file (one representative case per scenario - a
-skill that never fails still needs a corpus, because replay validation of a
-future edit must cover its OTHER scenarios and an empty corpus blocks the
-auto tier). In EVERY per-skill file path in this protocol - rubrics,
+yet represented in that file (one case per scenario: an empty corpus
+starves cross-scenario replay and blocks the auto tier). In EVERY
+per-skill file path in this protocol - rubrics,
 learnings, replays and suggestions alike - write <skill> with ':' replaced
 by '__' so plugin names stay valid filenames on all platforms
 (caveman:caveman-help -> caveman__caveman-help); ledger and maturity keys

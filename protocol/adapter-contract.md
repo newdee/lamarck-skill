@@ -52,7 +52,17 @@ hook).
 At trigger time, hand the model `protocol/light-loop.md` verbatim (strip
 the authoring comment, collapse whitespace, substitute `{{BACKLOG}}`),
 prefixed by a header naming the trigger mode, session id, pending skill
-names and the working directory that relative paths resolve against. The
+names and the working directory that relative paths resolve against - and,
+where the harness exposes a transcript, **objective signals counted by
+code**: per pending entry, from the skill activation to the next one (or
+30 minutes, whichever comes first), the number of tool calls, tool results flagged as errors, results reporting a
+non-zero exit code, exact-repeat calls (retries) and real user turns
+(`{tools,errors,nonzero_exit,retries,user_turns,lines}`, or `null` with a
+reason). The protocol makes the model copy these verbatim; they are the
+one channel of the evaluation an LLM cannot bend, and the optimization
+gate gives them veto power over judge verdicts. The reference trigger
+implements this against Claude Code transcripts; an adapter without a
+transcript injects `null`. The
 model must have read/write access to the lamarck directory and read access
 to the session's own execution trace - the protocol forbids evaluating
 from imagination (Iron Rule 8: no visible trace, no verdict; archive

@@ -73,6 +73,99 @@ try {
 
   const names = [...new Set(mine.map(o => o.skill))];
   const p = (...seg) => path.join(root, ...seg);
+
+  // Objective signals, counted by code - never by the model. For each pending
+  // entry, locate the skill activation in the session transcript (a Skill
+  // tool_use with that name nearest the pending ts) and count, until the next
+  // Skill activation or end of file: tool calls, tool results flagged
+  // is_error, results whose text reports a non-zero exit code, exact-repeat
+  // tool calls (retries), and real user turns (no tool_result content).
+  // These are injected as structured JSON the protocol tells the model to
+  // copy verbatim into the ledger - the one channel of the evaluation an LLM
+  // cannot bend. Any failure yields null with a reason, never a guess.
+  const MAX_TRANSCRIPT_BYTES = 150 * 1024 * 1024;
+  const ACTIVATION_TOLERANCE_MS = 10 * 60 * 1000;
+  // Attribution window: the next Skill activation ends it, and so does this
+  // cap - a session that never activates another skill would otherwise
+  // charge the whole rest of the conversation to one invocation.
+  const WINDOW_MS = 30 * 60 * 1000;
+  const transcriptCache = new Map();
+  const loadTranscript = (file) => {
+    if (transcriptCache.has(file)) return transcriptCache.get(file);
+    let rows = null;
+    try {
+      const st = fs.statSync(file);
+      if (st.size <= MAX_TRANSCRIPT_BYTES) {
+        rows = [];
+        for (const l of fs.readFileSync(file, 'utf8').split('\n')) {
+          if (!l.trim()) continue;
+          try { rows.push(JSON.parse(l)); } catch { /* skip corrupt line */ }
+        }
+      }
+    } catch { rows = null; }
+    transcriptCache.set(file, rows);
+    return rows;
+  };
+  const resultText = (item) => {
+    const c = item && item.content;
+    if (typeof c === 'string') return c;
+    if (Array.isArray(c)) return c.map(x => (x && typeof x.text === 'string') ? x.text : '').join('\n');
+    return '';
+  };
+  const objectiveFor = (entry) => {
+    if (!entry.transcript) return { objective: null, why: 'no transcript pointer' };
+    const rows = loadTranscript(entry.transcript);
+    if (!rows) return { objective: null, why: 'transcript unreadable or too large' };
+    const target = Date.parse(entry.ts);
+    let start = -1, best = Infinity;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (r.type !== 'assistant' || !r.message || !Array.isArray(r.message.content)) continue;
+      const hit = r.message.content.some(c => c && c.type === 'tool_use' && c.name === 'Skill' && c.input && c.input.skill === entry.skill);
+      if (!hit) continue;
+      const d = Math.abs(Date.parse(r.timestamp) - target);
+      if (d < best && d <= ACTIVATION_TOLERANCE_MS) { best = d; start = i; }
+    }
+    if (start < 0) return { objective: null, why: 'activation not found in transcript' };
+    const o = { tools: 0, errors: 0, nonzero_exit: 0, retries: 0, user_turns: 0, lines: 0 };
+    const seen = new Map();
+    const activatedAt = Date.parse(rows[start].timestamp);
+    for (let i = start + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const at = Date.parse(r.timestamp);
+      if (Number.isFinite(at) && Number.isFinite(activatedAt) && at - activatedAt > WINDOW_MS) break;
+      const content = r.message && r.message.content;
+      if (r.type === 'assistant' && Array.isArray(content)) {
+        let nextActivation = false;
+        for (const c of content) {
+          if (!c || c.type !== 'tool_use') continue;
+          if (c.name === 'Skill') { nextActivation = true; break; }
+          o.tools++;
+          const key = c.name + '|' + JSON.stringify(c.input || {});
+          const n = (seen.get(key) || 0) + 1;
+          seen.set(key, n);
+          if (n > 1) o.retries++;
+        }
+        if (nextActivation) break;
+      } else if (r.type === 'user') {
+        if (Array.isArray(content) && content.some(c => c && c.type === 'tool_result')) {
+          for (const c of content) {
+            if (!c || c.type !== 'tool_result') continue;
+            if (c.is_error === true) o.errors++;
+            if (/(^|\n)\s*exit code\s*[:=]?\s*([1-9]\d*)/i.test(resultText(c))) o.nonzero_exit++;
+          }
+        } else if (!r.isSidechain && (typeof content === 'string' || (Array.isArray(content) && content.some(c => c && c.type === 'text')))) {
+          o.user_turns++;
+        }
+      }
+      o.lines++;
+    }
+    return { objective: o, why: '' };
+  };
+  const objectiveLines = mine.map(e => {
+    const { objective, why } = objectiveFor(e);
+    return `${e.skill}@${e.ts} -> ${objective ? JSON.stringify(objective) : `null (${why})`}`;
+  });
   // Other sessions' entries never trigger a block on their own (no in-context
   // evidence to judge them by). But once this session is already evaluating,
   // an actionable backlog earns one line: transcript pointers decay, so silent
@@ -98,7 +191,8 @@ try {
   if (!proto || proto.includes('{{') || proto.includes('<!--')) { logErr(new Error('light-loop protocol empty, unfilled or unclosed-comment - refusing to inject')); process.exit(0); }
   const reason =
     `lamarck LIGHT loop (trigger: mode=${mode}, needed=${needed}): ${mine.length} skill invocation(s) from this session (session_id=${sid}) await evaluation: [${names.join(', ')}]. ` +
-    `Working directory: ${root} - every relative path below resolves against it. ` + proto;
+    `Working directory: ${root} - every relative path below resolves against it. ` +
+    `Objective signals, counted by code from the transcript (copy each verbatim into that ledger line's objective field; never estimate them): ${objectiveLines.join('; ')}. ` + proto;
   process.stdout.write(JSON.stringify({ decision: 'block', reason }));
 } catch (e) { logErr(e); /* never break the harness */ }
 process.exit(0);

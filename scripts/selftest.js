@@ -184,6 +184,58 @@ try {
   check('stop: backlog alone never blocks a session with no entries of its own',
     stopCall('{"session_id":"zzz","stop_hook_active":false}') === '');
 
+  // ---------- stop: objective signals counted by code from the transcript ----------
+  // A fabricated transcript with known counts; the hook must report them
+  // exactly, stop counting at the next Skill activation, and answer null
+  // (with a reason) when there is no pointer or no activation.
+  const trFile = path.join(sb, 'data', 'obj-transcript.jsonl');
+  const A = (ts, ...items) => JSON.stringify({ type: 'assistant', timestamp: ts, message: { role: 'assistant', content: items } });
+  const U = (ts, content, side) => JSON.stringify({ type: 'user', timestamp: ts, isSidechain: !!side, message: { role: 'user', content } });
+  const tu = (name, input) => ({ type: 'tool_use', id: 'x', name, input });
+  const tr = (content, isErr) => (isErr ? { type: 'tool_result', tool_use_id: 'x', content, is_error: true } : { type: 'tool_result', tool_use_id: 'x', content });
+  fs.writeFileSync(trFile, [
+    A('2026-09-01T10:00:00.000Z', tu('Skill', { skill: 'sk-a', args: '' })),
+    A('2026-09-01T10:00:05.000Z', tu('Read', { path: 'a' })),
+    U('2026-09-01T10:00:06.000Z', [tr('ok')]),
+    A('2026-09-01T10:00:07.000Z', tu('Read', { path: 'a' })),
+    U('2026-09-01T10:00:08.000Z', [tr('Exit code 2\n$ tsc\nerror TS2550', true)]),
+    U('2026-09-01T10:00:09.000Z', 'please fix that'),
+    U('2026-09-01T10:00:09.500Z', 'subagent chatter', true),
+    A('2026-09-01T10:00:10.000Z', tu('Bash', { command: 'x' })),
+    U('2026-09-01T10:00:11.000Z', [tr('Exit code 0\ndone')]),
+    A('2026-09-01T10:05:00.000Z', tu('Skill', { skill: 'sk-b', args: '' })),
+    A('2026-09-01T10:05:01.000Z', tu('Edit', { file: 'f' })),
+    U('2026-09-01T10:05:02.000Z', [tr('boom', true)]),
+    // 31 minutes after sk-b: outside the attribution window, must not count
+    A('2026-09-01T10:36:30.000Z', tu('Bash', { command: 'late' })),
+    U('2026-09-01T10:36:31.000Z', [tr('Exit code 1', true)])
+  ].join('\n') + '\n', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":4}', 'utf8');
+  const pend = (ts, skill, transcript) => JSON.stringify({ ts, session: 'sobj', skill, args: '', ver: '', harness: 'claude-code', transcript });
+  fs.writeFileSync(pending, [
+    pend('2026-09-01T10:00:00Z', 'sk-a', trFile),
+    pend('2026-09-01T10:05:00Z', 'sk-b', trFile),
+    pend('2026-09-01T10:06:00Z', 'sk-c', ''),
+    pend('2026-09-01T10:07:00Z', 'sk-z', trFile)
+  ].join('\n') + '\n', 'utf8');
+  o = stopCall('{"session_id":"sobj","stop_hook_active":false}');
+  check('stop: objective header present and marked as code-counted',
+    o.includes('Objective signals, counted by code') && o.includes('never estimate them'));
+  check('stop: objective counts exact for the first activation window (tools/errors/exit/retries/user turns; sidechain excluded)',
+    o.includes('sk-a@2026-09-01T10:00:00Z -> {\\"tools\\":3,\\"errors\\":1,\\"nonzero_exit\\":1,\\"retries\\":1,\\"user_turns\\":1,\\"lines\\":8}'));
+  check('stop: objective window stops at the next Skill activation and at the 30-minute cap',
+    o.includes('sk-b@2026-09-01T10:05:00Z -> {\\"tools\\":1,\\"errors\\":1,\\"nonzero_exit\\":0,\\"retries\\":0,\\"user_turns\\":0,\\"lines\\":2}'));
+  check('stop: objective null with reason when the entry has no transcript pointer',
+    o.includes('sk-c@2026-09-01T10:06:00Z -> null (no transcript pointer)'));
+  check('stop: objective null with reason when the activation is not in the transcript',
+    o.includes('sk-z@2026-09-01T10:07:00Z -> null (activation not found in transcript)'));
+  check('stop: objective extraction is byte-reproducible',
+    stopCall('{"session_id":"sobj","stop_hook_active":false}') === o);
+  check('stop: protocol makes the model copy objective verbatim and demands quoted corrections',
+    o.includes('copied verbatim or null') && o.includes('quoted verbatim in note'));
+  fs.writeFileSync(pending, '', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5}', 'utf8');
+
   // ---------- adapters: codex + cursor shims over the reference scripts ----------
   // The shims translate each harness's documented stdin/stdout contract and
   // delegate all logic to scripts/. Fabricated inputs follow the published

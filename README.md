@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-119%2F119-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-126%2F126-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for agent skills.** Not a one-shot
 optimizer for a hand-picked skill: install once, and every skill you have
@@ -121,7 +121,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **119/119**: hook
+   sandbox, zero contact with live telemetry. Currently **126/126**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -129,10 +129,17 @@ the SkillLens paper darwin-skill itself cites). Three tiers instead:
    CI-able (exit code gated).
 2. **Production telemetry** (accumulating by design): every invocation is
    stamped with the target skill's genome hash, so each accepted edit gets
-   before/after windows measured in **user-correction rate** — ground truth
-   from user behavior, not model self-scoring. Replay validation adds a
-   controlled comparison: identical real inputs, old vs new genome. All
-   verify verdicts are ledgered; `/lamarck report` aggregates them.
+   before/after windows. The loop is LLM-heavy by nature (evaluator →
+   diagnosis → mutation → judge), so the windows are measured on two
+   channels an LLM cannot bend first: **objective signals counted by code
+   from the transcript** — tool calls, tool errors, non-zero exit codes,
+   retries, user turns — injected as JSON the model copies verbatim, and
+   **user-correction rate** where a correction counts only with the user's
+   line quoted verbatim. Judges (paired blind, escalating to a 3-judge
+   majority on close calls) only vote when the objective channel does not
+   object: an objective regression after an edit vetoes a "better" verdict
+   and proposes a rollback. All verify verdicts are ledgered;
+   `/lamarck report` presents the hard numbers first.
 3. **mutation-bench** ([bench/ on GitHub](https://github.com/newdee/lamarck-skill/tree/main/bench),
    protocol preregistered before execution): controlled degradations with
    public ground truth, blind A/B judging. run-001: **4/5 known-degraded

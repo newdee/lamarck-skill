@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.14"
+  version: "5.15"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -151,6 +151,12 @@ worse / tie(绝对打分跨会话有校准噪声,成对比较可抵消)。**tie 
 worse → 回滚(git revert 或恢复 `.bak`),提案连失败原因写入 `data/rejected.md`;
 better / tie → 保留,解除冻结。
 
+**客观信号一票否决**:judge 只在客观信号不反对时才有投票权。编辑后版本窗口的
+`objective` 均值相对编辑前显著劣化(errors / nonzero_exit / retries 任一上升,
+样本 ≥3)→ 不采信 replay 与盲评的 better/tie,直接出回滚提案;客观信号持平或
+改善时,judge 才决定胜负。同理,LLM 判定的 `corrected` 必须附 transcript 中逐字
+存在的用户原句,引不出原句的纠正判定作废。
+
 **回滚语义(按证据强度分级)**:回滚 = 恢复用户已批准的上一基线,**不算新编辑**,
 不受"三选一"与有界编辑约束(Iron Rule 2/6 豁免)——但必须落账并在下次输出中
 显式告知用户。分级:replay / 盲评是同输入直接对照(强证据)→ **自动回滚**;
@@ -211,17 +217,22 @@ better / tie → 保留,解除冻结。
 - `evolve list` — 列出全部 skill 及其进化等级与账面健康度;`evolve add <skill> [evolve|suggest|auto]` /
   `evolve remove <skill>` — 改写 `config.json` 的 evolution 块,改完复述
   (auto 禁区:lamarck 自身与插件即使写入也不生效)。
-- `report [skill]` — 进化叙事卡:各版本(`ver`)健康度趋势、已保留/已回滚的编辑、
-  rubric 增删、replay 通过率;不带参数出全局摘要。
+- `report [skill]` — 进化叙事卡,**硬数字在前**:①客观基线——`objective` 各项
+  按 `ver` 分窗的均值(tools/errors/nonzero_exit/retries/user_turns);②行为
+  基线——纠正率(必须带原句);③judge 结论——replay 通过率与盲评,仅在①②不
+  反对时呈现;另列已保留/已回滚的编辑、rubric 增删;不带参数出全局摘要。
+  benchmark 在 lamarck 里就是①②的编辑前后对比,不是外部题库。
 
 ## 数据文件
 
 `data/pending.jsonl`(待处理,含 `ver` 基因版本戳与 `transcript` 执行日志指针——
 执行日志不自建,指向 Claude Code 自己的会话 transcript,按需读切片)·
 `data/ledger.jsonl`(账本,格式
-`{"ts","session","skill","ver","harness","trigger_fit","gaps","outcome","friction","note"}`,
+`{"ts","session","skill","ver","harness","objective","trigger_fit","gaps","outcome","friction","note"}`,
 评估时把 pending 条目的 `ver` 与 `harness` 原样带入;无 harness 字段的旧记录
-视为 claude-code)·
+视为 claude-code;`objective` 是 stop hook **用代码从 transcript 数出来**的客观
+信号 `{tools,errors,nonzero_exit,retries,user_turns,lines}`,模型只许原样抄录,
+无 transcript 时为 null——这是评估里唯一 LLM 不能扭曲的通道)·
 `data/learnings/<skill>.md`(逐 skill 经验)· `data/rubrics/<skill>.md`(逐 skill 尺子,
 git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,仅本地)·
 `data/maturity.json`(逐 skill 成熟度状态,评估时维护)·

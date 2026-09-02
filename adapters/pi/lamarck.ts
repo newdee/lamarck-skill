@@ -69,8 +69,13 @@ function renderProtocol(mineCount: number, names: string[], backlog: number, nee
     : "";
   const body = proto.replace(/<!--[\s\S]*?-->/g, "").replace(/\s+/g, " ").trim().replace("{{BACKLOG}}", backlogClause);
   if (!body || body.includes("{{") || body.includes("<!--")) { logErr(new Error("light-loop protocol empty, unfilled or unclosed-comment")); return null; }
+  // pi does not portably expose a transcript to extensions, so the
+  // code-counted objective signals the reference trigger injects are null
+  // here - stated explicitly so the model copies null rather than guessing.
+  const objective = names.map(n => `${n} -> null (no transcript in pi)`).join("; ");
   return `lamarck LIGHT loop (trigger: mode=${mode}, needed=${needed}): ${mineCount} skill invocation(s) from this session (session_id=${SESSION}) await evaluation: [${names.join(", ")}]. ` +
-    `Working directory: ${ROOT} - every relative path below resolves against it. ` + body;
+    `Working directory: ${ROOT} - every relative path below resolves against it. ` +
+    `Objective signals, counted by code from the transcript (copy each verbatim into that ledger line's objective field; never estimate them): ${objective}. ` + body;
 }
 
 export default function (pi: ExtensionAPI) {
