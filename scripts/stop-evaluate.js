@@ -38,6 +38,12 @@ try {
   // Missing or corrupt config falls back to the defaults, never crashes.
   let mode = 'threshold';
   let threshold = 5;
+  // isolation: 'inline' evaluates in the turn's own context (free, but the
+  // protocol and the evaluation's tool calls land there); 'subagent' hands
+  // the whole evaluation to one delegated agent that reads the protocol
+  // from disk and the evidence from the on-disk transcript, so the main
+  // context receives one line. Costs an extra model call; user's choice.
+  let isolation = 'inline';
   const cfgPath = path.join(root, 'config.json');
   if (fs.existsSync(cfgPath)) {
     try {
@@ -45,6 +51,7 @@ try {
       if (['every', 'manual', 'threshold'].includes(cfg.mode)) mode = cfg.mode;
       const t = Number(cfg.threshold);
       if (Number.isInteger(t) && t >= 1) threshold = t;
+      if (cfg.isolation === 'subagent') isolation = 'subagent';
     } catch { /* fall back to defaults */ }
   }
   if (mode === 'manual') process.exit(0);
@@ -189,10 +196,26 @@ try {
   // or an unclosed authoring comment (which the strip above cannot remove)
   // must never reach the model as protocol text.
   if (!proto || proto.includes('{{') || proto.includes('<!--')) { logErr(new Error('light-loop protocol empty, unfilled or unclosed-comment - refusing to inject')); process.exit(0); }
-  const reason =
+  // Everything lamarck injects is disposable once it has been acted on; the
+  // marker asks the harness's compaction pass to drop it first.
+  const MARK = '[lamarck: ephemeral - omit from compaction summaries] ';
+  const header =
     `lamarck LIGHT loop (trigger: mode=${mode}, needed=${needed}): ${mine.length} skill invocation(s) from this session (session_id=${sid}) await evaluation: [${names.join(', ')}]. ` +
-    `Working directory: ${root} - every relative path below resolves against it. ` +
-    `Objective signals, counted by code from the transcript (copy each verbatim into that ledger line's objective field; never estimate them): ${objectiveLines.join('; ')}. ` + proto;
+    `Working directory: ${root} - every relative path below resolves against it. `;
+  const objectiveSentence =
+    `Objective signals, counted by code from the transcript (copy each verbatim into that ledger line's objective field; never estimate them): ${objectiveLines.join('; ')}. `;
+  let reason;
+  if (isolation === 'subagent') {
+    const transcripts = [...new Set(mine.map(e => e.transcript).filter(Boolean))];
+    reason = MARK + header +
+      `ISOLATION MODE: do NOT evaluate in this context and do NOT read the protocol here. Spawn ONE subagent with the brief below, verbatim, then append at most one line to your reply with what it returns. ` +
+      `BRIEF: "You are the lamarck evaluator for session ${sid}. Working directory ${root}. Read protocol${path.sep}light-loop.md and execute it. Pending entries: ${mine.map(e => `${e.skill}@${e.ts}`).join(', ')}. ` +
+      `In-context evidence means the transcript slice around each activation in ${transcripts.join(' | ') || '(no transcript)'} - locate by ts and skill name, read only that slice; an entry with no transcript is archived per the protocol. ` +
+      `${objectiveSentence}Return exactly one line: entries evaluated, gaps found, anything that needs the user."` +
+      `${backlogClause} If this harness cannot spawn subagents, read protocol${path.sep}light-loop.md and run it inline instead.`;
+  } else {
+    reason = MARK + header + objectiveSentence + proto;
+  }
   process.stdout.write(JSON.stringify({ decision: 'block', reason }));
 } catch (e) { logErr(e); /* never break the harness */ }
 process.exit(0);

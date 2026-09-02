@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.16"
+  version: "5.17"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -22,7 +22,11 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
   对照该 skill rubric 中场景匹配的条目做四维评估落 `data/ledger.jsonl`、用户纠正
   n=1 结晶进 `data/rubrics/<skill>.md`、经验沉淀进 `data/learnings/<skill>.md`、
   蒸馏回归用例进 `data/replays/<skill>.jsonl`、清本会话 pending;他会话积压达阈值
-  时提示用户手动清算(指针会衰减,静默积压等于丢证据)。
+  时提示用户手动清算(指针会衰减,静默积压等于丢证据)。**上下文隔离**:
+  `config.json` 的 `isolation` 为 `subagent` 时,评估整体派一个子代理执行——
+  它从磁盘读协议、从实时落盘的 transcript 切片读证据,主上下文只收一行结果
+  (代价:多一次模型调用);默认 `inline` 零成本但协议进主上下文。所有注入
+  文本带 ephemeral 标记,供 harness compaction 优先丢弃。
   **触发时机由 `config.json` 决定**:`{"mode":"every|manual|threshold","threshold":N}`——
   `every` 每个用过 skill 的回合末触发;`manual` 从不自动触发;`threshold`(默认,N=5)
   攒到 N 条才批量评估。

@@ -364,7 +364,7 @@ try {
   fs.unlinkSync(gLatch);
   go = gStop('{"thread_id":"g1"}', 'text');
   check('generic stop --emit=text: bare protocol text (no JSON envelope)',
-    go.startsWith('lamarck LIGHT loop') && !go.startsWith('{'));
+    go.startsWith('[lamarck: ephemeral') && go.includes('lamarck LIGHT loop') && !go.startsWith('{'));
   fs.unlinkSync(gLatch);
   check('generic stop: unknown emit value stays silent (never a malformed envelope)',
     gStop('{"thread_id":"g1"}', 'chaos') === '');
@@ -387,6 +387,25 @@ try {
   check('stop: corrupt config falls back threshold/5', stopCall('{"session_id":"s3","stop_hook_active":false}') === '');
   fs.writeFileSync(cfgPath, '{"mode":"chaos","threshold":-3}', 'utf8');
   check('stop: illegal config values fall back threshold/5', stopCall('{"session_id":"s3","stop_hook_active":false}') === '');
+  // ---------- stop: context isolation ----------
+  // inline: the protocol body is injected. subagent: a short delegation
+  // brief replaces it - the protocol is read from disk by the subagent and
+  // the main context gets one line back. Both carry the ephemeral marker.
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"inline"}', 'utf8');
+  let iso = stopCall('{"session_id":"s3","stop_hook_active":false}');
+  check('stop: inline mode injects the protocol body and starts with the ephemeral marker',
+    iso.includes('ESCALATE ONLY IF') && iso.includes('"reason":"[lamarck: ephemeral - omit from compaction summaries] '));
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"subagent"}', 'utf8');
+  iso = stopCall('{"session_id":"s3","stop_hook_active":false}');
+  check('stop: subagent mode injects a delegation brief instead of the protocol body',
+    iso.includes('ISOLATION MODE') && iso.includes('Spawn ONE subagent') && iso.includes('BRIEF:') && !iso.includes('ESCALATE ONLY IF'));
+  check('stop: subagent brief carries the objective signals, the protocol path and the inline fallback',
+    iso.includes('Objective signals, counted by code') && iso.includes('light-loop.md') && iso.includes('run it inline instead'));
+  check('stop: subagent mode still starts with the ephemeral marker and is byte-reproducible',
+    iso.includes('"reason":"[lamarck: ephemeral') && stopCall('{"session_id":"s3","stop_hook_active":false}') === iso);
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"chaos"}', 'utf8');
+  check('stop: unknown isolation value falls back to inline',
+    stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
   fs.unlinkSync(cfgPath);
   check('stop: missing config falls back threshold/5', stopCall('{"session_id":"s3","stop_hook_active":false}') === '');
 
@@ -424,6 +443,9 @@ try {
   check('static: config.example.json valid, mode legal, evolution block sane',
     ['every', 'manual', 'threshold'].includes(cj.mode) && ['observe', 'suggest', 'evolve'].includes(cj.evolution.default));
   check('static: config.example.json stability block sane', cj.stability.streak >= 1 && cj.stability.sample >= 1);
+  const skillMdEarly = fs.readFileSync(path.join(repo, 'SKILL.md'), 'utf8');
+  check('static: config.example.json ships isolation=inline (the free default) and SKILL.md documents the switch',
+    cj.isolation === 'inline' && skillMdEarly.includes('`isolation`') && skillMdEarly.includes('ephemeral'));
   check('static: config.example.json auto tier is an array (trust ladder)', Array.isArray(cj.evolution.auto));
   const skillMd = fs.readFileSync(path.join(repo, 'SKILL.md'), 'utf8');
   check('static: auto tier documented with its forbidden zone (lamarck self, Iron Rules, plugins)',

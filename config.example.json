@@ -1,6 +1,7 @@
 {
   "mode": "threshold",
   "threshold": 5,
+  "isolation": "inline",
   "evolution": {
     "default": "observe",
     "auto": [],

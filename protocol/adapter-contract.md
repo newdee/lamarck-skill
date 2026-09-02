@@ -62,7 +62,16 @@ reason). The protocol makes the model copy these verbatim; they are the
 one channel of the evaluation an LLM cannot bend, and the optimization
 gate gives them veto power over judge verdicts. The reference trigger
 implements this against Claude Code transcripts; an adapter without a
-transcript injects `null`. The
+transcript injects `null`.
+
+Context isolation: with `isolation: subagent` in `config.json` the
+reference trigger injects a short delegation brief instead of the protocol
+body - the executor spawns one subagent that reads the protocol from disk
+and the evidence from the transcript, and the main context receives one
+line. Command-style adapters that delegate to the reference trigger inherit
+this; an in-process adapter without subagents (pi) runs inline. Every
+injection starts with `[lamarck: ephemeral - omit from compaction
+summaries]` so the harness's compaction drops it first. The
 model must have read/write access to the lamarck directory and read access
 to the session's own execution trace - the protocol forbids evaluating
 from imagination (Iron Rule 8: no visible trace, no verdict; archive

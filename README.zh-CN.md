@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-142%2F142-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-148%2F148-brightgreen)](scripts/selftest.js)
 
 **agent skill 的生产环境自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -99,7 +99,7 @@ Self-service 段附了可直接粘给那个 agent 的 prompt,并规定**三次�
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **142/142**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **148/148**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
@@ -152,6 +152,7 @@ npx lamarck-skill
 |---|---|---|
 | `mode` | `threshold` | 轻循环时机:`every` 每回合 / `manual` 仅手动 / `threshold` 攒够 N 条 |
 | `threshold` | `5` | threshold 模式的批量 N |
+| `isolation` | `inline` | 评估在哪跑:`inline` 在本回合上下文里(免费,协议会进上下文);`subagent` 派一个子代理从磁盘读协议、从实时落盘的 transcript 读证据,主上下文只收一行(多一次模型调用) |
 | `evolution.default` | `observe` | 未列名 skill 的信任级:只攒证据,不动文件 |
 | `evolution.evolve` / `suggest` / `auto` | `["lamarck"]` / `[]` / `[]` | 分级名单——`evolve` 每笔编辑问你,`suggest` 只写提案,`auto` 是挣来的自治(replay 把关) |
 | `stability.streak` / `sample` | `10` / `5` | 连续干净几次进 stable;stable 后抽查率 |
@@ -166,6 +167,11 @@ npx lamarck-skill
 | `audit <skill>` | 单 skill 全证据审查,可能产出编辑提案(仍过门) |
 | `mode every\|manual\|threshold [N]` | 切换评估时机 |
 | `evolve list` / `add <skill> [级别]` / `remove <skill>` | 管理信任阶梯 |
+
+**上下文卫生**——没有任何 API 能从活会话里删东西,所以防线全在"不让进":
+阈值批量触发、协议 3.6k 字预算、QUIETLY 条款(每次评估可见叙述 ≤2 行)、
+stable skill 降为一眼扫描、`isolation: subagent` 把整个评估搬出主上下文、
+每次注入带 ephemeral 标记让 harness compaction 优先丢弃。
 
 **不开 agent 看进展**——证据报告是纯脚本;模型从不算数字,只叙述:
 
