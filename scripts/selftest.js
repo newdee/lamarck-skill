@@ -236,6 +236,61 @@ try {
   fs.writeFileSync(pending, '', 'utf8');
   fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5}', 'utf8');
 
+  // ---------- report.js: evidence numbers computed by code ----------
+  // A fixture ledger with two versions of one skill, objective signals, a
+  // regression in the second window, and verify records; every figure the
+  // report prints must match what the fixture encodes.
+  const rpSb = fs.mkdtempSync(path.join(os.tmpdir(), 'lamarck-report-'));
+  fs.mkdirSync(path.join(rpSb, 'scripts'), { recursive: true });
+  fs.mkdirSync(path.join(rpSb, 'data'), { recursive: true });
+  fs.copyFileSync(path.join(repo, 'scripts', 'report.js'), path.join(rpSb, 'scripts', 'report.js'));
+  const row = (ts, skill, ver, outcome, objective, extra) => JSON.stringify(Object.assign({ ts, session: 's', skill, ver, harness: 'claude-code', objective, trigger_fit: 'ok', gaps: [], outcome, friction: '', note: '' }, extra || {}));
+  const objv = (errors, nonzero_exit, retries) => ({ tools: 10, errors, nonzero_exit, retries, user_turns: 1, lines: 20 });
+  fs.writeFileSync(path.join(rpSb, 'data', 'ledger.jsonl'), [
+    row('2026-08-01T00:00:00Z', 'alpha', 'v1', 'clean', objv(0, 0, 0)),
+    row('2026-08-02T00:00:00Z', 'alpha', 'v1', 'corrected', objv(2, 0, 0), { gaps: ['missing X, caused Y'], harness: 'codex' }),
+    row('2026-08-03T00:00:00Z', 'alpha', 'v2', 'clean', objv(3, 1, 0)),
+    row('2026-08-04T00:00:00Z', 'alpha', 'v2', 'clean', objv(3, 1, 2)),
+    row('2026-08-05T00:00:00Z', 'alpha', 'v2', 'failed', objv(3, 0, 1), { gaps: ['missing X, caused Y'] }),
+    row('2026-08-05T01:00:00Z', 'alpha', 'v2', 'stable-skip', null),
+    row('2026-08-06T00:00:00Z', 'beta', '', 'clean', null),
+    JSON.stringify({ ts: '2026-08-03T12:00:00Z', skill: 'alpha', type: 'verify', stage: 'replay', old_ver: 'v1', new_ver: 'v2', result: 'better', decision: 'keep', judges: 1, detail: '' }),
+    JSON.stringify({ ts: '2026-08-05T12:00:00Z', skill: 'alpha', type: 'verify', stage: 'window', old_ver: 'v1', new_ver: 'v2', result: 'worse', decision: 'revert', judges: 0, detail: '' }),
+    'CORRUPT LINE'
+  ].join('\n') + '\n', 'utf8');
+  fs.writeFileSync(path.join(rpSb, 'data', 'maturity.json'), '{"beta":{"state":"stable","clean_streak":12,"ver":""}}', 'utf8');
+  fs.writeFileSync(path.join(rpSb, 'config.json'), '{"mode":"threshold","threshold":5,"evolution":{"default":"observe","evolve":["alpha"],"suggest":[],"auto":[]}}', 'utf8');
+  fs.writeFileSync(path.join(rpSb, 'data', 'rejected.md'), '# rejected\n- one\n- two\n', 'utf8');
+  const rp = (...args) => spawnSync(process.execPath, [path.join(rpSb, 'scripts', 'report.js'), ...args], { encoding: 'utf8' });
+  const rj = JSON.parse(rp('--json').stdout);
+  check('report: overview counts evaluations, skills, verify records, rejected proposals (corrupt line tolerated)',
+    rj.overview.evaluations === 7 && rj.overview.skills === 2 && rj.overview.verify_records === 2 && rj.overview.rejected_proposals === 2 && rj.ledger_lines_total === 9);
+  check('report: as_of is the ledger\'s latest timestamp, never the wall clock', rj.as_of === '2026-08-06T00:00:00Z');
+  const al = rj.skills.alpha;
+  check('report: correction rate counts only full evaluations (stable-skip excluded)', al.correction_rate === 0.4 && al.evaluations === 6);
+  check('report: harness breakdown and tier from config', al.harness.codex === 1 && al.harness['claude-code'] === 5 && al.tier === 'evolve' && rj.skills.beta.tier === 'observe');
+  check('report: per-version objective means exact', al.versions[0].objective.errors === 1 && al.versions[1].objective.errors === 3 && al.versions[1].objective.n === 3);
+  check('report: version delta flags the objective regression per the veto rule (errors up, n>=3)',
+    al.deltas.length === 1 && al.deltas[0].objective_delta.errors === 2 && al.deltas[0].objective_regression === true);
+  check('report: verify tallies kept/reverted/judges/replay pass rate',
+    al.verify.kept === 1 && al.verify.reverted === 1 && al.verify.judges_total === 1 && al.verify.replay_pass_rate === 1);
+  check('report: top gap aggregated across versions', al.top_gaps[0].n === 2);
+  check('report: maturity surfaces stable skills', rj.overview.stable_skills === 1 && rj.skills.beta.maturity.clean_streak === 12);
+  const rSince = JSON.parse(rp('--json', '--since', '2d').stdout);
+  // window = as_of (08-06) - 2d = 08-04: alpha 08-04, alpha 08-05, alpha stable-skip 08-05T01, beta 08-06
+  check('report: --since anchors to as_of and drops older rows', rSince.overview.evaluations === 4 && rSince.since === '2026-08-04T00:00:00Z');
+  const rSkill = JSON.parse(rp('--json', '--skill', 'beta').stdout);
+  check('report: --skill filters to one skill', rSkill.overview.skills === 1 && rSkill.skills.beta && !rSkill.skills.alpha);
+  const rmd = rp().stdout;
+  check('report: markdown carries the skills table and the regression flag', rmd.includes('| alpha | evolve | 6 | 0.4 |') && rmd.includes('OBJECTIVE REGRESSION (veto)'));
+  check('report: --brief omits the per-version detail', !rp('--brief').stdout.includes('### alpha - versions'));
+  check('report: output byte-identical across runs', rp('--json').stdout === rp('--json').stdout && rp().stdout === rp().stdout);
+  fs.rmSync(path.join(rpSb, 'data', 'ledger.jsonl'));
+  const empty = rp('--json');
+  check('report: missing ledger yields an empty report, exit 0', empty.status === 0 && JSON.parse(empty.stdout).overview.evaluations === 0);
+  check('report: bad --since value exits 2 with a message', rp('--since', 'yesterday').status === 2);
+  fs.rmSync(rpSb, { recursive: true, force: true });
+
   // ---------- adapters: codex + cursor shims over the reference scripts ----------
   // The shims translate each harness's documented stdin/stdout contract and
   // delegate all logic to scripts/. Fabricated inputs follow the published

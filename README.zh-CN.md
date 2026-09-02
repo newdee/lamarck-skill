@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-126%2F126-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-142%2F142-brightgreen)](scripts/selftest.js)
 
 **agent skill 的生产环境自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -99,7 +99,7 @@ Self-service 段附了可直接粘给那个 agent 的 prompt,并规定**三次�
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **126/126**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **142/142**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
@@ -161,11 +161,21 @@ npx lamarck-skill
 | 命令 | 作用 |
 |---|---|
 | *(无参数)* | 接线自检,然后清算全部 pending(本会话 + 积压) |
-| `stats` | 调用频次、纠正率、gap 排行 |
-| `report [skill]` | 进化叙事:各版本健康度、保留/回滚的编辑、replay 通过率 |
+| `stats` | 调用频次、纠正率、gap 排行——数字来自 `scripts/report.js --brief`,模型只叙述 |
+| `report [skill]` | 基于 `scripts/report.js` 的进化叙事:各版本客观信号均值与 delta(劣化自动标出)、纠正率、保留/回滚的编辑、replay 通过率 |
 | `audit <skill>` | 单 skill 全证据审查,可能产出编辑提案(仍过门) |
 | `mode every\|manual\|threshold [N]` | 切换评估时机 |
 | `evolve list` / `add <skill> [级别]` / `remove <skill>` | 管理信任阶梯 |
+
+**不开 agent 看进展**——证据报告是纯脚本;模型从不算数字,只叙述:
+
+```
+node scripts/report.js --since 30d          # markdown,逐 skill 逐版本
+node scripts/report.js --since 90d --json   # 存档作证据
+```
+
+每个数字都能从账本逐行复核;唯一的时钟是账本自己的最新时间戳,同样的数据
+永远产出同样的字节。
 
 其他 harness 经各自适配器跑同一循环(接一次线即可,见上文架构表);
 它们的评估落进同一本账,Claude Code 里的 `/lamarck` 全都读得到。

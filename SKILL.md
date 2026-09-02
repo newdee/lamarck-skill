@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.15"
+  version: "5.16"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -211,17 +211,20 @@ better / tie → 保留,解除冻结。
   报错/重试次数、耗时);指针失效或定位不到,才退回按 skill 聚合归档
   `{"outcome":"archived","note":"N 次调用,args 样本"}`。
 - `audit <skill>` — 汇总该 skill 全部证据,产出编辑提案(仍走优化门+用户在环)。
-- `stats` — 只看账:各 skill 调用频次、corrected 率、gap 排行。
+- `stats` — 只看账:先跑 `node scripts/report.js --brief`(可加 `--since 30d`),
+  把它算出的各 skill 调用频次、纠正率、gap 排行原样呈现;**数字一律来自脚本,
+  不自己算**。
 - `mode <every|manual|threshold> [N]` — 改写 `config.json` 切换触发模式(threshold 可带
   阈值 N,缺省 5),改完复述当前配置。config.json 缺失或损坏时脚本回退 threshold/5。
 - `evolve list` — 列出全部 skill 及其进化等级与账面健康度;`evolve add <skill> [evolve|suggest|auto]` /
   `evolve remove <skill>` — 改写 `config.json` 的 evolution 块,改完复述
   (auto 禁区:lamarck 自身与插件即使写入也不生效)。
-- `report [skill]` — 进化叙事卡,**硬数字在前**:①客观基线——`objective` 各项
-  按 `ver` 分窗的均值(tools/errors/nonzero_exit/retries/user_turns);②行为
-  基线——纠正率(必须带原句);③judge 结论——replay 通过率与盲评,仅在①②不
-  反对时呈现;另列已保留/已回滚的编辑、rubric 增删;不带参数出全局摘要。
-  benchmark 在 lamarck 里就是①②的编辑前后对比,不是外部题库。
+- `report [skill]` — 进化叙事卡:先跑 `node scripts/report.js [--skill X]
+  [--since 30d]`(代码算、字节可复现,`--json` 可存档作证据),再对其输出做叙述,
+  **硬数字在前**:①客观基线——`objective` 各项按 `ver` 分窗的均值与版本间
+  delta(脚本已按否决规则标出 OBJECTIVE REGRESSION);②行为基线——纠正率;
+  ③judge 结论——replay 通过率、保留/回滚,仅在①②不反对时呈现。benchmark 在
+  lamarck 里就是①②的编辑前后对比,不是外部题库。用户在终端不开 agent 也能跑。
 
 ## 数据文件
 

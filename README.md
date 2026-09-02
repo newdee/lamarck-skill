@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-126%2F126-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-142%2F142-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for agent skills.** Not a one-shot
 optimizer for a hand-picked skill: install once, and every skill you have
@@ -121,7 +121,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **126/126**: hook
+   sandbox, zero contact with live telemetry. Currently **142/142**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -224,11 +224,22 @@ created from `config.example.json` on install):
 | command | does |
 |---|---|
 | *(none)* | wiring self-check, then process all pending (this session and backlog) |
-| `stats` | invocation counts, correction rates, gap ranking |
-| `report [skill]` | evolution narrative: per-version health, kept/rolled-back edits, replay pass rate |
+| `stats` | invocation counts, correction rates, gap ranking — numbers from `scripts/report.js --brief`, narrated |
+| `report [skill]` | evolution narrative over `scripts/report.js`: per-version objective means and deltas (regressions flagged), correction rate, kept/rolled-back edits, replay pass rate |
 | `audit <skill>` | full-evidence review of one skill, may produce an edit proposal (gated) |
 | `mode every\|manual\|threshold [N]` | switch evaluation timing |
 | `evolve list` / `add <skill> [tier]` / `remove <skill>` | manage the trust ladder |
+
+**Progress without an agent** — the evidence report is a plain script; the
+model never computes the numbers, it only narrates them:
+
+```
+node scripts/report.js --since 30d          # markdown, per skill and per version
+node scripts/report.js --since 90d --json   # archive as evidence
+```
+
+Every figure is reproducible from the ledger lines; the only clock is the
+ledger's own latest timestamp, so identical data yields identical bytes.
 
 Other harnesses run the same loop through their adapters (wire once — see
 the Architecture table above); their evaluations land in the same ledger,
