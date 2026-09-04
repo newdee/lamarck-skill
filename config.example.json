@@ -2,6 +2,14 @@
   "mode": "threshold",
   "threshold": 5,
   "isolation": "inline",
+  "background": {
+    "runner": "auto",
+    "runners": {
+      "claude": ["claude", "-p", "--add-dir", "{root}", "--add-dir", "{skills}", "--allowedTools", "Read", "Write", "Edit", "Agent", "Bash(git:*)", "Bash(node:*)", "PowerShell(git:*)", "PowerShell(node:*)"],
+      "codex": ["codex", "exec", "-C", "{root}", "-s", "workspace-write", "{prompt}"],
+      "pi": ["pi", "-p", "{prompt}"]
+    }
+  },
   "evolution": {
     "default": "observe",
     "auto": [],

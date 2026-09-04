@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-148%2F148-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-163%2F163-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for agent skills.** Not a one-shot
 optimizer for a hand-picked skill: install once, and every skill you have
@@ -121,7 +121,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **148/148**: hook
+   sandbox, zero contact with live telemetry. Currently **163/163**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -230,6 +230,16 @@ created from `config.example.json` on install):
 | `audit <skill>` | full-evidence review of one skill, may produce an edit proposal (gated) |
 | `mode every\|manual\|threshold [N]` | switch evaluation timing |
 | `evolve list` / `add <skill> [tier]` / `remove <skill>` | manage the trust ladder |
+
+**Background evolution** — approving a proposal (or an auto-tier skill
+passing the gate) never blocks your session: the session enqueues a job
+and returns to your work. A detached worker hands it to your harness's
+headless CLI (`claude -p`, `codex exec`, `pi -p` — templates in
+`config.json` `background.runners`, least privilege: the lamarck and skills
+directories only), which applies the edit under the gate rules, replays,
+ledgers the verify record, and writes one line to `data/inbox.md`. You get
+an OS notification; the next `/lamarck` shows unread results.
+`background.runner: none` restores in-session edits.
 
 **Context hygiene** — nothing can delete from a live context, so the
 defenses keep lamarck out of it: batched triggers, a 3.6k-char protocol

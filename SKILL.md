@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.17"
+  version: "5.18"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -129,7 +129,13 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
 
 非交互会话(用户不在场)一律选 2,并在最终输出里提示用户有待决提案。
 
-用户选 1 后,按归属施工:
+用户选 1(或 auto 级过门)后,**默认不在本会话施工**——先把提案写成具体的
+add / delete / replace 规格落到 `suggestions/<skill>.md`,然后
+`node scripts/evolve-worker.js enqueue --skill <skill> --proposal suggestions/<skill>.md --auth user|auto`,
+告知用户 job id 即结束。后台 worker 用本 harness 的无头 CLI(`config.json`
+`background.runners`,最小权限:只开 lamarck 目录与 skills 目录)按下列规则
+施工 + replay 验证 + verify 落账 + CHANGELOG,结果写 `data/inbox.md` 并发系统
+通知;下次 `/lamarck` 呈现。`background.runner` 为 `none` 时才就地施工,按归属:
 
 - **用户自有 skill**(`~/.claude/skills/<name>/`,非 `synced/`):目标目录在 git
   仓库内 → 编辑前后各 commit 一次(`lamarck: optimize <skill>: <摘要>`);
@@ -206,7 +212,8 @@ better / tie → 保留,解除冻结。
   `protocol/adapter-contract.md` 的 Self-service 粘贴 prompt);②hook 齐但
   `data/` 下 pending 与 ledger 皆无 → 报**接线正常、数据未至**(hook 重启后
   才加载;验活:用任一 skill 看 pending.jsonl 是否长一行)——不是配置错误,
-  不发接线指引。两关都过 → 处理全部 pending + 沉淀 learnings/rubric + 过优化门。本会话条目做
+  不发接线指引。两关都过 → 先 `node scripts/evolve-worker.js status --ack`,把后台
+  进化的未读结果原样呈现;再处理全部 pending + 沉淀 learnings/rubric + 过优化门。本会话条目做
   四维评估;**历史会话条目派独立 subagent 清算**(其证据在 transcript 文件里、
   不在本会话上下文,外置零证据损失;主上下文只收每条一行结论,防污染):
   subagent 先试 transcript 指针——记录的 `transcript` 路径若仍存在(30 天
@@ -244,6 +251,8 @@ better / tie → 保留,解除冻结。
 git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,仅本地)·
 `data/maturity.json`(逐 skill 成熟度状态,评估时维护)·
 `data/rejected.md`(拒绝缓冲)· `suggestions/<skill>.md`(待决提案)·
+`data/jobs.jsonl`(后台进化队列:id/skill/proposal/auth/status/seen)·
+`data/inbox.md`(后台结果,每 job 一行,`status --ack` 标已读)·
 `data/hook-errors.log`(hook 意外错误诊断,一行一条;安静=健康)·
 `CHANGELOG.md`(编辑留痕)。`off` 文件:停用自动 hook(手动调用不受影响)。
 

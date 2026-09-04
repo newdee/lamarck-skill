@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-148%2F148-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-163%2F163-brightgreen)](scripts/selftest.js)
 
 **agent skill 的生产环境自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -99,7 +99,7 @@ Self-service 段附了可直接粘给那个 agent 的 prompt,并规定**三次�
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **148/148**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **163/163**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
@@ -167,6 +167,13 @@ npx lamarck-skill
 | `audit <skill>` | 单 skill 全证据审查,可能产出编辑提案(仍过门) |
 | `mode every\|manual\|threshold [N]` | 切换评估时机 |
 | `evolve list` / `add <skill> [级别]` / `remove <skill>` | 管理信任阶梯 |
+
+**后台进化**——你批准一个提案(或 auto 级 skill 过门)从不阻塞当前会话:会话
+只入队一个 job 就回到你的工作。独立 worker 把它交给你 harness 的无头 CLI
+(`claude -p` / `codex exec` / `pi -p`,模板在 `config.json` `background.runners`,
+最小权限:只开 lamarck 目录与 skills 目录),无头 agent 按门规则施工、replay、
+落 verify 账、往 `data/inbox.md` 写一行。你收到系统通知;下次 `/lamarck` 呈现
+未读结果。`background.runner: none` 恢复会话内施工。
 
 **上下文卫生**——没有任何 API 能从活会话里删东西,所以防线全在"不让进":
 阈值批量触发、协议 3.6k 字预算、QUIETLY 条款(每次评估可见叙述 ≤2 行)、

@@ -291,6 +291,82 @@ try {
   check('report: bad --since value exits 2 with a message', rp('--since', 'yesterday').status === 2);
   fs.rmSync(rpSb, { recursive: true, force: true });
 
+  // ---------- evolve-worker: background evolution pipeline ----------
+  // A fake headless runner stands in for claude/codex/pi: it parses the job
+  // id out of the prompt and writes the inbox line the real agent would.
+  const wkSb = fs.mkdtempSync(path.join(os.tmpdir(), 'lamarck-worker-'));
+  fs.mkdirSync(path.join(wkSb, 'scripts'), { recursive: true });
+  fs.mkdirSync(path.join(wkSb, 'data'), { recursive: true });
+  fs.mkdirSync(path.join(wkSb, 'suggestions'), { recursive: true });
+  fs.copyFileSync(path.join(repo, 'scripts', 'evolve-worker.js'), path.join(wkSb, 'scripts', 'evolve-worker.js'));
+  const fakeRunner = path.join(wkSb, 'fake-runner.js');
+  fs.writeFileSync(fakeRunner,
+    "const fs=require('fs');const p=process.argv.slice(2).join(' ');const m=/\\[([a-z0-9-]+)\\]/.exec(p);" +
+    "const f=/to the file (\\S+?):|to (\\S+?inbox\\.md) that/.exec(p);const file=(f&&(f[1]||f[2]))||'';" +
+    "if(process.env.FAKE_FAIL){process.exit(3)}" +
+    "fs.writeFileSync(require('path').join(require('path').dirname(process.argv[1]), 'last-prompt.txt'), p);" +
+    "fs.appendFileSync(file, `- [${m[1]}] fake agent: applied, replay better, kept\\n`);", 'utf8');
+  fs.writeFileSync(path.join(wkSb, 'suggestions', 'demo.md'), '# proposal\n- replace line 3 with X\n', 'utf8');
+  fs.writeFileSync(path.join(wkSb, 'config.json'), JSON.stringify({
+    mode: 'threshold', threshold: 5,
+    background: { runner: 'fake', runners: { fake: ['node', fakeRunner, '{prompt}'] } }
+  }), 'utf8');
+  const wk = (args, env) => spawnSync(process.execPath, [path.join(wkSb, 'scripts', 'evolve-worker.js'), ...args],
+    { encoding: 'utf8', env: Object.assign({}, process.env, { LAMARCK_NO_NOTIFY: '1' }, env || {}) });
+  let w = wk(['enqueue', '--skill', 'demo', '--proposal', 'suggestions/demo.md', '--auth', 'user', '--no-spawn']);
+  const jobsFile = path.join(wkSb, 'data', 'jobs.jsonl');
+  check('worker: enqueue writes a queued job with the proposal path and authorization',
+    w.status === 0 && w.stdout.includes('queued ') && fs.readFileSync(jobsFile, 'utf8').includes('"auth":"user"') && fs.readFileSync(jobsFile, 'utf8').includes('"status":"queued"'));
+  check('worker: enqueue refuses a bad authorization and a missing proposal file',
+    wk(['enqueue', '--skill', 'demo', '--proposal', 'suggestions/demo.md', '--auth', 'boss', '--no-spawn']).status === 2 &&
+    wk(['enqueue', '--skill', 'demo', '--proposal', 'suggestions/nope.md', '--auth', 'user', '--no-spawn']).status === 2);
+  w = wk(['run']);
+  const jobsAfter = fs.readFileSync(jobsFile, 'utf8');
+  const inboxAfter = fs.readFileSync(path.join(wkSb, 'data', 'inbox.md'), 'utf8');
+  check('worker: run hands the job to the configured headless runner and marks it done',
+    w.status === 0 && jobsAfter.includes('"status":"done"') && jobsAfter.includes('"runner":"fake"'));
+  check('worker: the runner\'s inbox line is kept verbatim (worker adds none of its own)',
+    inboxAfter.includes('fake agent: applied, replay better, kept') && (inboxAfter.match(/^- \[/gm) || []).length === 1);
+  const lastPrompt = fs.readFileSync(path.join(wkSb, 'last-prompt.txt'), 'utf8');
+  check('worker: the brief binds the agent to SKILL.md gate rules, names the proposal, the authorization and the confinement',
+    lastPrompt.includes('SKILL.md') && lastPrompt.includes('Iron Rules') && lastPrompt.includes(path.join(wkSb, 'suggestions', 'demo.md')) &&
+    lastPrompt.includes('approved this proposal') && lastPrompt.includes('never touch anything outside') && lastPrompt.includes('revert'));
+  check('worker: lock released after the run', !fs.existsSync(path.join(wkSb, 'data', '.worker.lock')));
+  w = wk(['status']);
+  check('worker: status reports one unread result with its inbox line', w.stdout.includes('1 unread') && w.stdout.includes('fake agent'));
+  w = wk(['status', '--ack']);
+  check('worker: status --ack marks it read', w.stdout.includes('acknowledged 1') && wk(['status']).stdout.includes('0 unread'));
+  wk(['enqueue', '--ping', '--no-spawn']);
+  w = wk(['run'], { FAKE_FAIL: '1' });
+  check('worker: a failing runner yields a failed job and a FAILED inbox line, exit 0',
+    w.status === 0 && fs.readFileSync(jobsFile, 'utf8').includes('"status":"failed"') && fs.readFileSync(path.join(wkSb, 'data', 'inbox.md'), 'utf8').includes('FAILED: runner exited 3'));
+  fs.writeFileSync(path.join(wkSb, 'data', '.worker.lock'), '1', 'utf8');
+  wk(['enqueue', '--ping', '--no-spawn']);
+  check('worker: a fresh lock makes a second run stand down', wk(['run']).stdout.includes('already running') && fs.readFileSync(jobsFile, 'utf8').split('"status":"queued"').length === 2);
+  fs.unlinkSync(path.join(wkSb, 'data', '.worker.lock'));
+  // stdin channel (claude-style template without {prompt}) + verdict by
+  // inbox content: a runner that exits 0 but writes nothing is NOT done.
+  const stdinRunner = path.join(wkSb, 'stdin-runner.js');
+  fs.writeFileSync(stdinRunner,
+    "const fs=require('fs');const p=fs.readFileSync(0,'utf8');fs.writeFileSync(require('path').join(__dirname,'stdin-prompt.txt'),p);" +
+    "if(process.env.FAKE_SILENT){process.exit(0)}const m=/\\[([a-z0-9-]+)\\]/.exec(p);const f=/to the file (\\S+?) \\(/.exec(p);" +
+    "fs.appendFileSync(f[1], `- [${m[1]}] ping ok\\n`);", 'utf8');
+  fs.writeFileSync(path.join(wkSb, 'config.json'), JSON.stringify({ background: { runner: 'sr', runners: { sr: ['node', stdinRunner, '--flag', 'has space here'] } } }), 'utf8');
+  w = wk(['run']);
+  const stdinPrompt = fs.readFileSync(path.join(wkSb, 'stdin-prompt.txt'), 'utf8');
+  check('worker: a template without {prompt} delivers the whole brief on stdin (no shell splitting)',
+    stdinPrompt.includes('ping ok') && stdinPrompt.includes('lamarck pipeline check') && fs.readFileSync(jobsFile, 'utf8').includes('"status":"done"'));
+  wk(['enqueue', '--ping', '--no-spawn']);
+  wk(['run'], { FAKE_SILENT: '1' });
+  check('worker: exit 0 without an inbox line is recorded as unverified, never done',
+    fs.readFileSync(jobsFile, 'utf8').includes('"status":"unverified"') && fs.readFileSync(path.join(wkSb, 'data', 'inbox.md'), 'utf8').includes('UNVERIFIED'));
+  fs.writeFileSync(path.join(wkSb, 'config.json'), '{"background":{"runner":"none"}}', 'utf8');
+  wk(['enqueue', '--ping', '--no-spawn']);
+  wk(['run']);
+  check('worker: runner none fails the job gracefully with a clear inbox reason',
+    fs.readFileSync(path.join(wkSb, 'data', 'inbox.md'), 'utf8').includes('no headless runner available'));
+  fs.rmSync(wkSb, { recursive: true, force: true });
+
   // ---------- adapters: codex + cursor shims over the reference scripts ----------
   // The shims translate each harness's documented stdin/stdout contract and
   // delegate all logic to scripts/. Fabricated inputs follow the published
@@ -446,6 +522,14 @@ try {
   const skillMdEarly = fs.readFileSync(path.join(repo, 'SKILL.md'), 'utf8');
   check('static: config.example.json ships isolation=inline (the free default) and SKILL.md documents the switch',
     cj.isolation === 'inline' && skillMdEarly.includes('`isolation`') && skillMdEarly.includes('ephemeral'));
+  check('static: config.example.json background block ships least-privilege headless templates for claude/codex/pi',
+    cj.background && cj.background.runner === 'auto' && ['claude', 'codex', 'pi'].every(n => Array.isArray(cj.background.runners[n])) &&
+    !cj.background.runners.claude.includes('{prompt}') /* brief via stdin - survives Windows shell splitting */ &&
+    cj.background.runners.codex.includes('{prompt}') && cj.background.runners.pi.includes('{prompt}') &&
+    cj.background.runners.claude.includes('--add-dir') && cj.background.runners.claude.includes('PowerShell(git:*)') &&
+    !cj.background.runners.claude.join(' ').includes('dangerously'));
+  check('static: SKILL.md routes approved and auto-tier edits through the background worker',
+    skillMdEarly.includes('evolve-worker.js enqueue') && skillMdEarly.includes('默认不在本会话施工') && skillMdEarly.includes('status --ack'));
   check('static: config.example.json auto tier is an array (trust ladder)', Array.isArray(cj.evolution.auto));
   const skillMd = fs.readFileSync(path.join(repo, 'SKILL.md'), 'utf8');
   check('static: auto tier documented with its forbidden zone (lamarck self, Iron Rules, plugins)',

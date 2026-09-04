@@ -85,6 +85,23 @@ executor whose harness cannot ask a three-way choice or spawn judge
 subagents never edits in place - it downgrades every gate-passing proposal
 to `suggestions/<skill>.md`, the same rule as non-interactive sessions.
 
+### 4. Background runner - evolution outside the session
+
+Applying an approved (or auto-tier) proposal is not done in the user's
+session. The session enqueues a job (`scripts/evolve-worker.js enqueue`)
+and returns to the user's work; a detached worker hands the job to the
+harness's **headless CLI** with least privilege - the lamarck directory
+and the skills directory only - which applies the edit under the gate
+rules, runs replay validation, ledgers the verify record and appends one
+line to `data/inbox.md`. The worker then sends an OS notification; the
+next `/lamarck` surfaces unread results.
+
+An adapter contributes its headless command template in `config.json`
+`background.runners.<name>` with `{prompt}`, `{root}` and `{skills}`
+placeholders. Shipped: `claude -p --add-dir --allowedTools ...`,
+`codex exec -C -s workspace-write`, `pi -p`. A harness with no headless
+CLI sets `background.runner` to `none` and edits land in-session as before.
+
 ## Adapter notes per harness
 
 - **Claude Code** (reference, shipped): collector = PostToolUse hook,
