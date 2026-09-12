@@ -44,6 +44,13 @@ try {
   // from disk and the evidence from the on-disk transcript, so the main
   // context receives one line. Costs an extra model call; user's choice.
   let isolation = 'inline';
+  // cadence: how often the ACTIVE side runs - escalation to proposals,
+  // background jobs, backlog reminders. Telemetry and silent evaluation
+  // stay continuous (evidence decays); only the updates are batched.
+  // Window state lives in data/cadence.json {last: ts}, stamped by the
+  // escalation itself so this hook stays a pure function of its inputs.
+  const CADENCE_MS = { weekly: 7 * 86400000, daily: 86400000, continuous: 0 };
+  let cadence = 'weekly';
   const cfgPath = path.join(root, 'config.json');
   if (fs.existsSync(cfgPath)) {
     try {
@@ -52,8 +59,15 @@ try {
       const t = Number(cfg.threshold);
       if (Number.isInteger(t) && t >= 1) threshold = t;
       if (cfg.isolation === 'subagent') isolation = 'subagent';
+      if (Object.prototype.hasOwnProperty.call(CADENCE_MS, cfg.cadence)) cadence = cfg.cadence;
     } catch { /* fall back to defaults */ }
   }
+  let lastWindow = -Infinity;
+  try { lastWindow = Date.parse(JSON.parse(fs.readFileSync(path.join(root, 'data', 'cadence.json'), 'utf8')).last); } catch { /* never opened */ }
+  if (!Number.isFinite(lastWindow)) lastWindow = -Infinity;
+  const nextWindowMs = lastWindow + CADENCE_MS[cadence];
+  const windowOpen = cadence === 'continuous' || Date.now() >= nextWindowMs;
+  const nextWindowIso = Number.isFinite(nextWindowMs) ? new Date(nextWindowMs).toISOString().slice(0, 19) + 'Z' : 'now';
   if (mode === 'manual') process.exit(0);
 
   const pendingPath = path.join(root, 'data', 'pending.jsonl');
@@ -177,9 +191,12 @@ try {
   // evidence to judge them by). But once this session is already evaluating,
   // an actionable backlog earns one line: transcript pointers decay, so silent
   // accumulation quietly loses the evidence it points at.
-  const backlogClause = backlog >= needed
+  const backlogClause = (backlog >= needed && windowOpen)
     ? ` NOTE: ${backlog} pending entr${backlog === 1 ? 'y' : 'ies'} from other sessions are also on file and are NOT evaluated here; tell the user once that '/lamarck' drains that backlog and that transcript pointers decay after ~30 days.`
     : '';
+  const escalateClause = windowOpen
+    ? `ESCALATE ONLY IF, after logging, some skill has >=2 independent invocations with same-type gaps in the ledger: then read SKILL.md and run its optimization gate, and write data/cadence.json as {"last":"<now ISO>"} to stamp this cadence window (cadence=${cadence}).`
+    : `Do NOT escalate this turn even if some skill has >=2 same-type gaps: updates are batched (cadence=${cadence}) and the next window opens ${nextWindowIso}; log only. The user can open a window any time with '/lamarck'.`;
   // The protocol body is a SINGLE SOURCE shared by every adapter
   // (protocol/light-loop.md). This adapter injects it verbatim: strip the
   // authoring comment, normalize line endings (CRLF checkouts must produce
@@ -191,7 +208,8 @@ try {
   try {
     proto = fs.readFileSync(protoPath, 'utf8');
   } catch (e) { logErr(new Error(`light-loop protocol unreadable: ${(e && e.message) || e}`)); process.exit(0); }
-  proto = proto.replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').trim().replace('{{BACKLOG}}', backlogClause);
+  proto = proto.replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').trim()
+    .replace('{{BACKLOG}}', backlogClause).replace('{{ESCALATE}}', escalateClause);
   // Refuse a dirty render outright: an empty body, an unfilled placeholder,
   // or an unclosed authoring comment (which the strip above cannot remove)
   // must never reach the model as protocol text.
@@ -211,7 +229,7 @@ try {
       `ISOLATION MODE: do NOT evaluate in this context and do NOT read the protocol here. Spawn ONE subagent with the brief below, verbatim, then append at most one line to your reply with what it returns. ` +
       `BRIEF: "You are the lamarck evaluator for session ${sid}. Working directory ${root}. Read protocol${path.sep}light-loop.md and execute it. Pending entries: ${mine.map(e => `${e.skill}@${e.ts}`).join(', ')}. ` +
       `In-context evidence means the transcript slice around each activation in ${transcripts.join(' | ') || '(no transcript)'} - locate by ts and skill name, read only that slice; an entry with no transcript is archived per the protocol. ` +
-      `${objectiveSentence}Return exactly one line: entries evaluated, gaps found, anything that needs the user."` +
+      `${objectiveSentence}Cadence: ${windowOpen ? 'the update window is open - escalate per the protocol if the gate opens' : `updates are batched, next window ${nextWindowIso} - log only, do not escalate`}. Return exactly one line: entries evaluated, gaps found, anything that needs the user."` +
       `${backlogClause} If this harness cannot spawn subagents, read protocol${path.sep}light-loop.md and run it inline instead.`;
   } else {
     reason = MARK + header + objectiveSentence + proto;

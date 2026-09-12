@@ -482,6 +482,38 @@ try {
   fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"chaos"}', 'utf8');
   check('stop: unknown isolation value falls back to inline',
     stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
+
+  // ---------- stop: cadence (updates batched, telemetry continuous) ----------
+  // No data/cadence.json = never opened = window due. A fresh stamp closes
+  // it for the cadence period; continuous ignores the stamp entirely.
+  const cadFile = path.join(sb, 'data', 'cadence.json');
+  fs.writeFileSync(cfgPath, '{"mode":"every"}', 'utf8');
+  let cad = stopCall('{"session_id":"s3","stop_hook_active":false}');
+  check('stop: default cadence is weekly and a never-opened window is open (escalation allowed, stamping instructed)',
+    cad.includes('ESCALATE ONLY IF') && cad.includes('cadence=weekly') && cad.includes('write data/cadence.json'));
+  fs.writeFileSync(cadFile, JSON.stringify({ last: new Date().toISOString() }), 'utf8');
+  cad = stopCall('{"session_id":"s3","stop_hook_active":false}');
+  check('stop: a fresh stamp closes the weekly window - log only, next window dated, no escalation',
+    !cad.includes('ESCALATE ONLY IF') && cad.includes('Do NOT escalate this turn') && cad.includes('next window opens 20'));
+  check('stop: closed window is byte-reproducible', stopCall('{"session_id":"s3","stop_hook_active":false}') === cad);
+  fs.writeFileSync(cadFile, JSON.stringify({ last: new Date(Date.now() - 8 * 86400000).toISOString() }), 'utf8');
+  check('stop: a stamp older than the period reopens the window',
+    stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
+  fs.writeFileSync(cadFile, JSON.stringify({ last: new Date().toISOString() }), 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"every","cadence":"continuous"}', 'utf8');
+  check('stop: cadence continuous ignores the stamp',
+    stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
+  fs.writeFileSync(cfgPath, '{"mode":"every","cadence":"daily"}', 'utf8');
+  fs.writeFileSync(cadFile, JSON.stringify({ last: new Date(Date.now() - 2 * 86400000).toISOString() }), 'utf8');
+  check('stop: cadence daily reopens after one day', stopCall('{"session_id":"s3","stop_hook_active":false}').includes('cadence=daily') && stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
+  fs.writeFileSync(cfgPath, '{"mode":"every","cadence":"hourly"}', 'utf8');
+  check('stop: unknown cadence falls back to weekly', stopCall('{"session_id":"s3","stop_hook_active":false}').includes('cadence=weekly'));
+  fs.writeFileSync(cadFile, 'not json', 'utf8');
+  check('stop: corrupt cadence.json is treated as never opened', stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
+  fs.unlinkSync(cadFile);
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"subagent"}', 'utf8');
+  check('stop: subagent brief carries the cadence state too',
+    stopCall('{"session_id":"s3","stop_hook_active":false}').includes('Cadence: the update window is open'));
   fs.unlinkSync(cfgPath);
   check('stop: missing config falls back threshold/5', stopCall('{"session_id":"s3","stop_hook_active":false}') === '');
 
@@ -522,6 +554,8 @@ try {
   const skillMdEarly = fs.readFileSync(path.join(repo, 'SKILL.md'), 'utf8');
   check('static: config.example.json ships isolation=inline (the free default) and SKILL.md documents the switch',
     cj.isolation === 'inline' && skillMdEarly.includes('`isolation`') && skillMdEarly.includes('ephemeral'));
+  check('static: config.example.json ships cadence=weekly and SKILL.md documents the batching semantics',
+    cj.cadence === 'weekly' && skillMdEarly.includes('`cadence`') && skillMdEarly.includes('data/cadence.json') && skillMdEarly.includes('显式开窗'));
   check('static: config.example.json background block ships least-privilege headless templates for claude/codex/pi',
     cj.background && cj.background.runner === 'auto' && ['claude', 'codex', 'pi'].every(n => Array.isArray(cj.background.runners[n])) &&
     !cj.background.runners.claude.includes('{prompt}') /* brief via stdin - survives Windows shell splitting */ &&
@@ -554,8 +588,9 @@ try {
   // comment (which may itself mention the placeholder while documenting it).
   const protoBody = fs.readFileSync(path.join(repo, 'protocol', 'light-loop.md'), 'utf8')
     .replace(/<!--[\s\S]*?-->/g, '');
-  check('static: protocol body carries exactly one placeholder, {{BACKLOG}}',
-    (protoBody.match(/\{\{BACKLOG\}\}/g) || []).length === 1 && (protoBody.match(/\{\{/g) || []).length === 1);
+  check('static: protocol body carries exactly two placeholders, {{BACKLOG}} and {{ESCALATE}}',
+    (protoBody.match(/\{\{BACKLOG\}\}/g) || []).length === 1 && (protoBody.match(/\{\{ESCALATE\}\}/g) || []).length === 1 &&
+    (protoBody.match(/\{\{/g) || []).length === 2);
   check('static: protocol body keeps paths relative (no absolute or backslashed paths)',
     !/[A-Za-z]:\\/.test(protoBody) && protoBody.includes('data/pending.jsonl'));
   // The protocol is injected on every trigger; unlike SKILL.md it had no

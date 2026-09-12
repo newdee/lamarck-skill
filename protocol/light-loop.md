@@ -15,6 +15,10 @@
   - Never line-break inside a quoted phrase that scripts/selftest.js greps
     for; whitespace collapsing joins lines with single spaces.
   - {{BACKLOG}} is replaced by the adapter with a backlog notice or ''.
+  - {{ESCALATE}} is replaced by the adapter with the escalation rule when
+    the cadence window is open, or with a "log only, next window opens
+    <date>" sentence when it is closed (config.json `cadence`, default
+    weekly; window state in data/cadence.json, stamped by the escalation).
   - This protocol is governed by the same rules as SKILL.md: changes go
     through the optimization gate and explicit user approval.
 -->
@@ -61,9 +65,7 @@ keep the real name with the colon. Maintain maturity.json accordingly
 re-read data/pending.jsonl and write it back without this session's lines -
 re-read immediately before writing, because concurrent sessions may have
 appended entries while you were evaluating and those must survive.{{BACKLOG}}
-ESCALATE ONLY IF, after logging, some skill has >=2 independent invocations
-with same-type gaps in the ledger: then read SKILL.md and run its
-optimization gate. NEVER apply an edit to any skill without first asking
+{{ESCALATE}} NEVER apply an edit to any skill without first asking
 the user (AskUserQuestion: apply / keep as suggestion / reject); in a
 non-interactive session, or when this harness cannot ask a three-way
 choice or spawn the judge subagents the gate's validation needs, write

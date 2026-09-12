@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-163%2F163-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-173%2F173-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for agent skills.** Not a one-shot
 optimizer for a hand-picked skill: install once, and every skill you have
@@ -121,7 +121,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **163/163**: hook
+   sandbox, zero contact with live telemetry. Currently **173/173**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -215,6 +215,7 @@ created from `config.example.json` on install):
 |---|---|---|
 | `mode` | `threshold` | when the light loop runs: `every` turn, `manual` only, or once `threshold` entries accumulate |
 | `threshold` | `5` | the batch size for `threshold` mode |
+| `cadence` | `weekly` | how often the *updates* happen — escalation to proposals, background edits, backlog reminders — batched into one window per period (`weekly` / `daily` / `continuous`). Telemetry and silent evaluation stay continuous; `/lamarck` opens a window any time |
 | `isolation` | `inline` | where the evaluation runs: `inline` in the turn's own context (free; the protocol lands there), or `subagent` — one delegated agent reads the protocol from disk and the evidence from the on-disk transcript, and the main context receives a single line (costs an extra model call) |
 | `evolution.default` | `observe` | trust tier for every unlisted skill: evidence accumulates, nothing is edited |
 | `evolution.evolve` / `suggest` / `auto` | `["lamarck"]` / `[]` / `[]` | per-tier skill lists — `evolve` asks you per edit, `suggest` only files proposals, `auto` is earned autonomy (replay-gated) |
@@ -229,6 +230,7 @@ created from `config.example.json` on install):
 | `report [skill]` | evolution narrative over `scripts/report.js`: per-version objective means and deltas (regressions flagged), correction rate, kept/rolled-back edits, replay pass rate |
 | `audit <skill>` | full-evidence review of one skill, may produce an edit proposal (gated) |
 | `mode every\|manual\|threshold [N]` | switch evaluation timing |
+| `cadence weekly\|daily\|continuous` | switch how often updates are batched |
 | `evolve list` / `add <skill> [tier]` / `remove <skill>` | manage the trust ladder |
 
 **Background evolution** — approving a proposal (or an auto-tier skill

@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.18"
+  version: "5.19"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -31,7 +31,11 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
   `every` 每个用过 skill 的回合末触发;`manual` 从不自动触发;`threshold`(默认,N=5)
   攒到 N 条才批量评估。
 - **升级**(条件触发,才加载本文件):某 skill 已有 **≥2 次独立调用、同类 gap**
-  → 走优化门;或手动 `/lamarck`。
+  → 走优化门;或手动 `/lamarck`。**节奏**:`config.json` 的 `cadence`
+  (`weekly` 默认 / `daily` / `continuous`)决定升级、提案、后台施工、积压提醒
+  多久合并一个批次——记账与静默评估照常连续(证据会衰减),只有"更新"被批
+  处理。窗口状态在 `data/cadence.json`(`{"last": ts}`),距上次 ≥ 周期即开,
+  由升级动作盖章;手动 `/lamarck` 永远视为显式开窗并盖章。
 
 ## 尺子:逐 skill 动态 rubric
 
@@ -227,6 +231,8 @@ better / tie → 保留,解除冻结。
   不自己算**。
 - `mode <every|manual|threshold> [N]` — 改写 `config.json` 切换触发模式(threshold 可带
   阈值 N,缺省 5),改完复述当前配置。config.json 缺失或损坏时脚本回退 threshold/5。
+- `cadence <weekly|daily|continuous>` — 改写 `config.json` 的更新节奏,改完复述;
+  无参数 `/lamarck` 本身就是开窗:处理完 pending 后写 `data/cadence.json`。
 - `evolve list` — 列出全部 skill 及其进化等级与账面健康度;`evolve add <skill> [evolve|suggest|auto]` /
   `evolve remove <skill>` — 改写 `config.json` 的 evolution 块,改完复述
   (auto 禁区:lamarck 自身与插件即使写入也不生效)。

@@ -173,8 +173,9 @@ function install() {
       node ${path.join(target, 'scripts', 'report.js')} --since 30d
     (add --json to archive it as evidence)
  Defaults until you touch config.json: evaluation batches at 5
- calls, every skill is observe-only (evidence accumulates, nothing
- is ever edited). Whitelist per skill later: /lamarck evolve add
+ calls, updates (proposals, background edits, reminders) batch into
+ one WEEKLY window, every skill is observe-only (evidence accumulates,
+ nothing is ever edited). Whitelist per skill later: /lamarck evolve add
 ────────────────────────────────────────────────────────────────`);
   process.exit(st.status === 0 ? 0 : 1);
 }

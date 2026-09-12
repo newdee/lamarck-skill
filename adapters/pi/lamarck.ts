@@ -67,7 +67,22 @@ function renderProtocol(mineCount: number, names: string[], backlog: number, nee
   const backlogClause = backlog >= needed
     ? ` NOTE: ${backlog} pending entr${backlog === 1 ? "y" : "ies"} from other sessions are also on file and are NOT evaluated here; tell the user once that '/lamarck' drains that backlog and that transcript pointers decay after ~30 days.`
     : "";
-  const body = proto.replace(/<!--[\s\S]*?-->/g, "").replace(/\s+/g, " ").trim().replace("{{BACKLOG}}", backlogClause);
+  // cadence window (config.json `cadence`, state in data/cadence.json) -
+  // same rendering as the reference trigger.
+  const CADENCE_MS: Record<string, number> = { weekly: 7 * 86400000, daily: 86400000, continuous: 0 };
+  let cadence = "weekly";
+  try { const c = JSON.parse(fs.readFileSync(path.join(ROOT, "config.json"), "utf8")).cadence; if (c in CADENCE_MS) cadence = c; } catch { /* default */ }
+  let last = -Infinity;
+  try { last = Date.parse(JSON.parse(fs.readFileSync(path.join(DATA, "cadence.json"), "utf8")).last); } catch { /* never */ }
+  if (!Number.isFinite(last)) last = -Infinity;
+  const nextMs = last + CADENCE_MS[cadence];
+  const open = cadence === "continuous" || Date.now() >= nextMs;
+  const nextIso = Number.isFinite(nextMs) ? new Date(nextMs).toISOString().slice(0, 19) + "Z" : "now";
+  const escalateClause = open
+    ? `ESCALATE ONLY IF, after logging, some skill has >=2 independent invocations with same-type gaps in the ledger: then read SKILL.md and run its optimization gate, and write data/cadence.json as {"last":"<now ISO>"} to stamp this cadence window (cadence=${cadence}).`
+    : `Do NOT escalate this turn even if some skill has >=2 same-type gaps: updates are batched (cadence=${cadence}) and the next window opens ${nextIso}; log only. The user can open a window any time with '/lamarck'.`;
+  const body = proto.replace(/<!--[\s\S]*?-->/g, "").replace(/\s+/g, " ").trim()
+    .replace("{{BACKLOG}}", open ? backlogClause : "").replace("{{ESCALATE}}", escalateClause);
   if (!body || body.includes("{{") || body.includes("<!--")) { logErr(new Error("light-loop protocol empty, unfilled or unclosed-comment")); return null; }
   // pi does not portably expose a transcript to extensions, so the
   // code-counted objective signals the reference trigger injects are null
