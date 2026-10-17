@@ -12,3 +12,6 @@ off
 # Publish/build artifacts
 *.tgz
 node_modules/
+# Pristine copy of the last shipped files - the base for upgrade merges
+.upstream/
+

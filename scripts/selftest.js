@@ -360,6 +360,20 @@ try {
   wk(['run'], { FAKE_SILENT: '1' });
   check('worker: exit 0 without an inbox line is recorded as unverified, never done',
     fs.readFileSync(jobsFile, 'utf8').includes('"status":"unverified"') && fs.readFileSync(path.join(wkSb, 'data', 'inbox.md'), 'utf8').includes('UNVERIFIED'));
+  // upgrade kind: the brief binds the agent to the notes, the saved conflicts, the gate and the code/genome split
+  fs.writeFileSync(path.join(wkSb, 'notes.md'), '# notes\n- entry\n', 'utf8');
+  fs.writeFileSync(path.join(wkSb, 'config.json'), JSON.stringify({ background: { runner: 'fake', runners: { fake: ['node', fakeRunner, '{prompt}'] } } }), 'utf8');
+  check('worker: enqueue --upgrade validates its arguments',
+    wk(['enqueue', '--upgrade', '--from', '1', '--to', '2', '--notes', 'missing.md', '--files', 'SKILL.md', '--no-spawn']).status === 2 &&
+    wk(['enqueue', '--upgrade', '--from', '5.19.0', '--to', '5.20.0', '--notes', 'notes.md', '--files', 'SKILL.md,protocol/light-loop.md', '--no-spawn']).status === 0);
+  wk(['run']);
+  const upPrompt = fs.readFileSync(path.join(wkSb, 'last-prompt.txt'), 'utf8');
+  check('worker: upgrade brief carries from/to, notes path, evolved files, conflicts dir, gate rules and the code-follows-upstream rule',
+    upPrompt.includes('5.19.0 -> 5.20.0') && upPrompt.includes(path.join(wkSb, 'notes.md')) && upPrompt.includes('SKILL.md,protocol/light-loop.md') &&
+    upPrompt.includes(path.join('upgrade-conflicts', '5.20.0')) && upPrompt.includes('Iron Rules') && upPrompt.includes('never change scripts/ or adapters/') &&
+    upPrompt.includes('semantic coherence'));
+  check('worker: upgrade job verified by its inbox line like any evolve job',
+    fs.readFileSync(jobsFile, 'utf8').includes('"kind":"upgrade"') && /"kind":"upgrade"[^\n]*"status":"done"/.test(fs.readFileSync(jobsFile, 'utf8')));
   fs.writeFileSync(path.join(wkSb, 'config.json'), '{"background":{"runner":"none"}}', 'utf8');
   wk(['enqueue', '--ping', '--no-spawn']);
   wk(['run']);
@@ -554,6 +568,10 @@ try {
   const skillMdEarly = fs.readFileSync(path.join(repo, 'SKILL.md'), 'utf8');
   check('static: config.example.json ships isolation=inline (the free default) and SKILL.md documents the switch',
     cj.isolation === 'inline' && skillMdEarly.includes('`isolation`') && skillMdEarly.includes('ephemeral'));
+  check('static: SKILL.md and both READMEs document the merge-not-overwrite upgrade (base copy, conflicts dir, integration job)',
+    skillMdEarly.includes('`.upstream/`') && skillMdEarly.includes('data/upgrade-conflicts/') && skillMdEarly.includes('data/upgrade-notes/') &&
+    fs.readFileSync(path.join(repo, 'README.md'), 'utf8').includes('three-way merges') &&
+    fs.readFileSync(path.join(repo, 'README.zh-CN.md'), 'utf8').includes('三方合并'));
   check('static: config.example.json ships cadence=weekly and SKILL.md documents the batching semantics',
     cj.cadence === 'weekly' && skillMdEarly.includes('`cadence`') && skillMdEarly.includes('data/cadence.json') && skillMdEarly.includes('显式开窗'));
   check('static: config.example.json background block ships least-privilege headless templates for claude/codex/pi',
@@ -699,6 +717,105 @@ try {
     const unshipped = coreItems.filter(c => !shipped.has(c));
     check('static: installer CORE list ships entirely in the tarball', unshipped.length === 0);
     if (unshipped.length) unshipped.forEach(c => console.log(`        missing: ${c}`));
+
+    // ---------- installer: upgrades merge, never silently overwrite ----------
+    // A sandbox home gets a fresh install, then a "next upstream" copy of the
+    // repo with known changes upgrades it twice: once with a clean local
+    // edit (must survive), once with a conflicting one (upstream wins the
+    // hunk, local saved, inbox informed, clean local hunks still survive).
+    const ihome = fs.mkdtempSync(path.join(os.tmpdir(), 'lamarck-ihome-'));
+    const isrc2 = fs.mkdtempSync(path.join(os.tmpdir(), 'lamarck-isrc-'));
+    const itarget = path.join(ihome, '.claude', 'skills', 'lamarck');
+    const inst = (from, extra) => spawnSync(process.execPath, [path.join(from, 'bin', 'install.js'), 'install', '--home', ihome, '--no-selftest', '--no-worker', ...(extra || [])], { encoding: 'utf8' });
+    const ijobs = () => (fs.existsSync(path.join(itarget, 'data', 'jobs.jsonl')) ? rf(path.join(itarget, 'data', 'jobs.jsonl')).split('\n').filter(l => l.trim()).map(l => JSON.parse(l)) : []);
+    // a missing file must FAIL the check that reads it, never crash the suite
+    const rf = (p) => (fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '');
+    let ir = inst(repo);
+    check('installer: fresh install copies CORE and records the pristine base with its version',
+      ir.status === 0 && ir.stdout.includes(`copied  ${coreItems.length} files`) && fs.existsSync(path.join(itarget, '.upstream', 'SKILL.md')) &&
+      rf(path.join(itarget, '.upstream', 'VERSION')).trim() === JSON.parse(fs.readFileSync(pjPath, 'utf8')).version);
+    check('installer: installed .gitignore keeps the pristine base out of git',
+      rf(path.join(itarget, '.gitignore')).includes('.upstream/') &&
+      spawnSync('git', ['-C', itarget, 'check-ignore', '-q', '.upstream/VERSION']).status === 0);
+    // next upstream: bump version, change a script, change one SKILL.md line
+    for (const item of ['bin', 'scripts', 'protocol', 'adapters', 'data', 'SKILL.md', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'LICENSE', 'config.example.json', 'gitignore.template', 'package.json']) {
+      fs.cpSync(path.join(repo, item), path.join(isrc2, item), { recursive: true });
+    }
+    const bumpSrc = (v) => {
+      fs.writeFileSync(path.join(isrc2, 'package.json'), rf(path.join(isrc2, 'package.json')).replace(/"version": "[^"]+"/, `"version": "${v}"`), 'utf8');
+      fs.writeFileSync(path.join(isrc2, 'SKILL.md'), rf(path.join(isrc2, 'SKILL.md')).replace(/^  version: "[^"]+"/m, `  version: "${v}"`), 'utf8');
+    };
+    bumpSrc('99.1.0');
+    fs.appendFileSync(path.join(isrc2, 'scripts', 'report.js'), '\n// upstream 99.1 change\n', 'utf8');
+    // local evolution: a new section at the end of SKILL.md (clean region)
+    fs.appendFileSync(path.join(itarget, 'SKILL.md'), '\n## local evolution\n- a locally crystallized rule\n', 'utf8');
+    ir = inst(isrc2);
+    const sk1 = rf(path.join(itarget, 'SKILL.md'));
+    check('installer: upgrade merges - local section survives AND upstream change lands in the same file',
+      ir.status === 0 && sk1.includes('a locally crystallized rule') && sk1.includes('version: "99.1.0"') && ir.stdout.includes('1 merged, 0 conflict'));
+    // the local file was appended with LF; the merge must neither flip its dominant ending nor leave conflict noise
+    const eolOf = (s) => ((s.match(/\r\n/g) || []).length > (s.match(/(?<!\r)\n/g) || []).length ? 'crlf' : 'lf');
+    check('installer: merge is line-ending insensitive and writes back the local file\'s dominant ending',
+      eolOf(sk1) === eolOf(rf(path.join(repo, 'SKILL.md'))) && !sk1.includes('<<<<<<<'));
+    check('installer: untouched files follow upstream, base refreshed to the new version',
+      rf(path.join(itarget, 'scripts', 'report.js')).includes('upstream 99.1 change') && rf(path.join(itarget, '.upstream', 'VERSION')).trim() === '99.1.0' &&
+      rf(path.join(itarget, '.upstream', 'SKILL.md')) === rf(path.join(isrc2, 'SKILL.md')));
+    // the local genome had evolved -> a semantic-integration job is queued with upstream's notes
+    const uj = ijobs().filter(j => j.kind === 'upgrade');
+    check('installer: evolved genome queues one upgrade job carrying from/to, the evolved files and a notes file',
+      uj.length === 1 && uj[0].to === '99.1.0' && uj[0].files === 'SKILL.md' && uj[0].auth === 'user' && uj[0].status === 'queued' &&
+      fs.existsSync(uj[0].notes) && rf(uj[0].notes).includes('## What upstream changed') && ir.stdout.includes('queued  semantic integration'));
+    // bump the changelog in the next upstream so the notes carry exactly the new entry
+    fs.writeFileSync(path.join(isrc2, 'CHANGELOG.md'), rf(path.join(isrc2, 'CHANGELOG.md')).replace(/\n- /, '\n- 2099-01-01 | (自身) | v99.2.0:upstream test entry\n- '), 'utf8');
+    // conflict: local and upstream both edit the version line; local also keeps its clean section
+    fs.writeFileSync(path.join(itarget, 'SKILL.md'), sk1.replace('version: "99.1.0"', 'version: "99.1.0-local"'), 'utf8');
+    bumpSrc('99.2.0');
+    ir = inst(isrc2);
+    const sk2 = rf(path.join(itarget, 'SKILL.md'));
+    check('installer: conflict - upstream wins the conflicting hunk, the clean local hunk still survives',
+      ir.status === 0 && sk2.includes('version: "99.2.0"') && !sk2.includes('99.1.0-local') && sk2.includes('a locally crystallized rule') && !sk2.includes('<<<<<<<'));
+    check('installer: conflict - full local version saved, inbox informed, terminal says so',
+      rf(path.join(itarget, 'data', 'upgrade-conflicts', '99.2.0', 'SKILL.md')).includes('99.1.0-local') &&
+      rf(path.join(itarget, 'data', 'inbox.md')).includes('[upgrade-99.2.0]') && ir.stdout.includes('CONFLICT upstream 99.2.0'));
+    const uj2 = ijobs().filter(j => j.kind === 'upgrade' && j.to === '99.2.0');
+    check('installer: upgrade notes carry exactly the CHANGELOG entries new since the installed version',
+      uj2.length === 1 && rf(uj2[0].notes).includes('v99.2.0:upstream test entry') && !rf(uj2[0].notes).includes('v5.19.0') &&
+      rf(uj2[0].notes).includes('Conflicts (upstream won the hunk') && rf(uj2[0].notes).includes('SKILL.md'));
+    // reinstalling the same version changes nothing
+    const before = rf(path.join(itarget, 'SKILL.md'));
+    ir = inst(isrc2);
+    // SKILL.md still carries the clean local section, so it is "kept local" (base == upstream); everything else unchanged
+    check('installer: same-version reinstall is a no-op (nothing updated or merged, no new conflict, no new inbox line)',
+      ir.stdout.includes(`0 updated, ${coreItems.length - 1} unchanged, 1 kept local, 0 merged, 0 conflict`) && rf(path.join(itarget, 'SKILL.md')) === before &&
+      rf(path.join(itarget, 'data', 'inbox.md')).split('[upgrade-99.2.0]').length === 2);
+    // upgrade with no local edits is byte-identical to a plain copy (the old behavior).
+    // Only package.json is bumped here so upstream does NOT touch SKILL.md this time.
+    fs.writeFileSync(path.join(isrc2, 'package.json'), rf(path.join(isrc2, 'package.json')).replace(/"version": "[^"]+"/, '"version": "99.3.0"'), 'utf8');
+    fs.appendFileSync(path.join(isrc2, 'protocol', 'adapter-contract.md'), '\nupstream 99.3 note\n', 'utf8');
+    inst(isrc2);
+    check('installer: upgrade without local edits reproduces upstream byte for byte',
+      coreItems.filter(c => c !== 'SKILL.md').every(c => fs.readFileSync(path.join(itarget, ...c.split('/'))).equals(fs.readFileSync(path.join(isrc2, ...c.split('/'))))));
+    // upstream did not touch SKILL.md in 99.3 (only the contract) -> local-only divergence queues nothing new
+    check('installer: a genome file only the local side changed queues no integration job',
+      ijobs().filter(j => j.kind === 'upgrade' && j.to === '99.3.0').length === 0);
+    // a pristine local genome must queue nothing either - check with a fresh home
+    const ihome2 = fs.mkdtempSync(path.join(os.tmpdir(), 'lamarck-ihome2-'));
+    const inst2 = (from) => spawnSync(process.execPath, [path.join(from, 'bin', 'install.js'), 'install', '--home', ihome2, '--no-selftest', '--no-worker'], { encoding: 'utf8' });
+    inst2(repo); const r2 = inst2(isrc2);
+    check('installer: upgrade with a pristine local genome queues NO integration job',
+      r2.status === 0 && !r2.stdout.includes('semantic integration') && !fs.existsSync(path.join(ihome2, '.claude', 'skills', 'lamarck', 'data', 'jobs.jsonl')));
+    fs.rmSync(ihome2, { recursive: true, force: true });
+    // pre-5.20 install (no .upstream/): bootstrap the base from the last installer commit
+    fs.rmSync(path.join(itarget, '.upstream'), { recursive: true, force: true });
+    fs.appendFileSync(path.join(itarget, 'protocol', 'light-loop.md'), '\nlocal protocol note\n', 'utf8');
+    bumpSrc('99.4.0');
+    ir = inst(isrc2);
+    check('installer: an install without .upstream/ bootstraps its base from git and still merges local edits',
+      ir.status === 0 && rf(path.join(itarget, 'protocol', 'light-loop.md')).includes('local protocol note') && ir.stdout.includes('0 conflict'));
+    check('installer: git history reads snapshot -> upgrade with the version named',
+      spawnSync('git', ['-C', itarget, 'log', '--format=%s', '-n', '2'], { encoding: 'utf8' }).stdout.trim().split('\n')[0] === 'lamarck upgrade to 99.4.0');
+    fs.rmSync(ihome, { recursive: true, force: true });
+    fs.rmSync(isrc2, { recursive: true, force: true });
     // Invariant 2: every relative markdown link in every shipped .md must
     // resolve inside the tarball - installed copies get no dead links.
     const badLinks = [];

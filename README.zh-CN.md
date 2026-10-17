@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-173%2F173-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-192%2F192-brightgreen)](scripts/selftest.js)
 
 **agent skill 的生产环境自进化系统。** 不是给某一个手工圈选的 skill 做一次性
 优化:装一次,你的全部已装 skill(几百个也一样)在真实使用中持续积累证据,
@@ -99,7 +99,7 @@ Self-service 段附了可直接粘给那个 agent 的 prompt,并规定**三次�
 darwin 自己引用的 SkillLens 论文说 LLM 自评准确率约 46%)。取而代之的分层:
 
 1. **机制自证** —— `node scripts/selftest.js`,隔离临时沙箱,零接触真实
-   遥测。当前 **173/173**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
+   遥测。当前 **192/192**:hook 记账、基因戳、三档触发、配置回退、会话隔离、
    防死循环、字节级可复现输出、gitignore 边界,以及轻循环所依赖的协议条款
    活性(rubric 接线、replay 收割、积压提示)。CI 可用(exit code 门控)。
 2. **生产遥测**(按设计自动积累):每次调用带目标 skill 基因哈希,每笔被
@@ -131,7 +131,14 @@ npx lamarck-skill
 ```
 
 (等价:`npx github:newdee/lamarck-skill`)。装完重启 Claude Code(或开一次
-`/hooks`)让 hook 加载。其他 harness 手动接线,步骤见各适配器 README:
+`/hooks`)让 hook 加载。**升级**用同一条命令,而且是合并不是覆盖:lamarck 会
+进化自己,你装的 SKILL.md 与协议可以合法地和发布版不同。installer 在
+`.upstream/` 留一份上次装入的原样副本,升级时逐文件三方合并 base / 本地 / 新版。
+合得干净直接落地;冲突块上游赢,你的版本存到 `data/upgrade-conflicts/<版本>/`,
+inbox 留一行。只要你的基因进化过,机械合并就不是终点:installer 把上游自述的
+变更(新增的 CHANGELOG 条目)作为一个后台 `upgrade` job 交给本地 lamarck,由它做
+语义融合——审合并结果是否自洽、仍成立的本地意图经优化门重套、被上游覆盖的
+丢掉——结果写 inbox。代码(`scripts/`、`adapters/`)永远跟上游。其他 harness 手动接线,步骤见各适配器 README:
 [Codex](adapters/codex/README.md)、[Cursor](adapters/cursor/README.md)、
 [pi](adapters/pi/README.md)。卸载(摘 hook、保留文件与遥测):
 `npx lamarck-skill uninstall`。

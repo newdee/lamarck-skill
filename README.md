@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-173%2F173-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-192%2F192-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for agent skills.** Not a one-shot
 optimizer for a hand-picked skill: install once, and every skill you have
@@ -121,7 +121,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **173/173**: hook
+   sandbox, zero contact with live telemetry. Currently **192/192**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -167,7 +167,20 @@ npx lamarck-skill
 ```
 
 (equivalent: `npx github:newdee/lamarck-skill`). Restart Claude Code (or open
-`/hooks` once) afterwards so the hooks load. Other harnesses wire manually —
+`/hooks` once) afterwards so the hooks load. **Upgrading** is the same
+command, and it merges rather than overwrites: lamarck evolves itself, so
+your installed SKILL.md and protocol may legitimately differ from what
+shipped. The installer keeps a pristine copy of the last shipped files in
+`.upstream/` and three-way merges base / local / new per file. A clean
+merge lands; a conflict lets upstream win that hunk, saves your version
+under `data/upgrade-conflicts/<version>/`, and leaves one line in the
+inbox. Then, if your genome had evolved at all, the mechanical merge is not
+the last word: the installer hands the local lamarck upstream's own account
+of the release (the new CHANGELOG entries) as a background `upgrade` job,
+and it integrates semantically - checks the merged files still cohere,
+re-applies local intent that is still valid through the gate, drops what
+upstream made redundant - and reports to the inbox. Code (`scripts/`,
+`adapters/`) always follows upstream. Other harnesses wire manually —
 each adapter's README has the steps: [Codex](adapters/codex/README.md),
 [Cursor](adapters/cursor/README.md), [pi](adapters/pi/README.md). Uninstall
 (unwires hooks, keeps files and telemetry): `npx lamarck-skill uninstall`

@@ -4,7 +4,7 @@ description: Lamarckian skill evolution - continuously monitors every real skill
 license: MIT
 metadata:
   author: kian
-  version: "5.19"
+  version: "5.20"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -257,6 +257,12 @@ better / tie → 保留,解除冻结。
 git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,仅本地)·
 `data/maturity.json`(逐 skill 成熟度状态,评估时维护)·
 `data/rejected.md`(拒绝缓冲)· `suggestions/<skill>.md`(待决提案)·
+`.upstream/`(上次装入的上游原样副本,升级三方合并的 base,不入库)·
+`data/upgrade-conflicts/<版本>/`(升级时合不进去的本地版本,上游已落地;要保留的
+改动经优化门对新 base 重新提案)· `data/upgrade-notes/<版本>.md`(上游自述的
+变更——新旧版本间的 CHANGELOG 条目;本地基因进化过时 installer 据此入队一个
+`upgrade` 后台 job,由本地 lamarck 做语义融合:审合并结果的一致性、把仍成立的
+本地意图经门重套、丢掉被上游覆盖的,结果写 inbox)·
 `data/jobs.jsonl`(后台进化队列:id/skill/proposal/auth/status/seen)·
 `data/inbox.md`(后台结果,每 job 一行,`status --ack` 标已读)·
 `data/hook-errors.log`(hook 意外错误诊断,一行一条;安静=健康)·

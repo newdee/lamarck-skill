@@ -3,6 +3,7 @@
 //
 //   node scripts/evolve-worker.js enqueue --skill <name> --proposal <file> --auth user|auto [--no-spawn]
 //   node scripts/evolve-worker.js enqueue --ping [--no-spawn]        # pipeline smoke test
+//   node scripts/evolve-worker.js enqueue --upgrade --from <v> --to <v> --notes <file> --files <a,b>   # installer: integrate an upstream release into a locally evolved genome
 //   node scripts/evolve-worker.js run                                # drain the queue (spawned detached by enqueue)
 //   node scripts/evolve-worker.js status [--ack]                     # queue + unread results
 //
@@ -80,6 +81,20 @@ function brief(job) {
   if (job.kind === 'ping') {
     return `lamarck pipeline check, no investigation needed. Append exactly this one line to the file ${inboxPath} (create it if missing): - [${job.id}] ping ok   Then stop. Output nothing else.`;
   }
+  if (job.kind === 'upgrade') {
+    // Semantic integration of an upstream release into a locally evolved
+    // lamarck. The installer already did the mechanical three-way merge;
+    // this pass checks that the result still makes sense and re-applies
+    // local intent that lost a conflict - through the gate, never by hand.
+    return `You are lamarck's background evolver, integrating an upstream upgrade. Working directory: ${root} (the skills directory is ${skillsDir}); never touch anything outside these two. ` +
+      `Read ${path.join(root, 'SKILL.md')} - the optimization gate, bounded-edit rules, replay validation, rollback semantics and Iron Rules bind you. ` +
+      `Job ${job.id}: lamarck was upgraded ${job.from} -> ${job.to} by the user running the installer (that is the authorization). ` +
+      `Upstream's own account of what changed and why is in ${job.notes}. The installer merged upstream into the locally evolved genome mechanically; the files where local evolution existed are: ${job.files}. ` +
+      `Where a conflict occurred, upstream won that hunk and the full local version is saved under ${path.join(root, 'data', 'upgrade-conflicts', job.to)}. ` +
+      `Your task: (1) read the notes and the current genome files and judge semantic coherence - a local rule may now contradict or duplicate a new upstream rule even though no lines overlapped; (2) for each saved local version, decide whether its intent is still valid against the new base and, if so, re-apply it as a bounded gate edit (at most 3 edits of at most 10 lines each, git commit before and after, replay validation, verify record to ${path.join(root, 'data', 'ledger.jsonl')}); drop what upstream has made redundant and say so; (3) never change scripts/ or adapters/ - code follows upstream. ` +
+      `Append one line to ${path.join(root, 'CHANGELOG.md')}. ` +
+      `Finish by appending ONE line to ${inboxPath} that starts with '- [${job.id}] ' and states: files reviewed, local intents re-applied / dropped / needing the user, replay results. Output nothing else.`;
+  }
   const auth = job.auth === 'auto'
     ? 'the auto tier (verify in config.json that the skill is listed under evolution.auto and that data/replays/<skill>.jsonl is non-empty; if either fails, abort and say so)'
     : `the user, who approved this proposal at ${job.ts}`;
@@ -149,7 +164,7 @@ function run() {
       job.finished = nowIso();
       job.seen = false;
       writeJobs(jobs);
-      notify(`lamarck: job ${job.id} ${job.status} (${job.kind === 'ping' ? 'ping' : job.skill}) - see data/inbox.md`);
+      notify(`lamarck: job ${job.id} ${job.status} (${job.kind === 'ping' ? 'ping' : job.kind === 'upgrade' ? `upgrade ${job.from} -> ${job.to}` : job.skill}) - see data/inbox.md`);
     }
   } finally {
     try { fs.unlinkSync(lockPath); } catch { /* already gone */ }
@@ -159,20 +174,31 @@ function run() {
 
 function enqueue() {
   const ping = has('--ping');
+  const upgrade = has('--upgrade');
   const skill = opt('--skill');
   const proposal = opt('--proposal');
   const auth = opt('--auth');
-  if (!ping && (!skill || !proposal || !['user', 'auto'].includes(auth || ''))) {
-    console.error('usage: enqueue --skill <name> --proposal <file> --auth user|auto   |   enqueue --ping');
-    return 2;
+  const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  let job;
+  if (upgrade) {
+    const from = opt('--from'), to = opt('--to'), notes = opt('--notes'), files = opt('--files');
+    if (!from || !to || !notes || !files || !fs.existsSync(path.resolve(root, notes))) {
+      console.error('usage: enqueue --upgrade --from <ver> --to <ver> --notes <file> --files <a,b,c>');
+      return 2;
+    }
+    job = { id, ts: nowIso(), kind: 'upgrade', skill: 'lamarck', from, to, notes: path.resolve(root, notes), files, auth: 'user', status: 'queued', seen: false };
+  } else {
+    if (!ping && (!skill || !proposal || !['user', 'auto'].includes(auth || ''))) {
+      console.error('usage: enqueue --skill <name> --proposal <file> --auth user|auto   |   enqueue --ping   |   enqueue --upgrade ...');
+      return 2;
+    }
+    if (!ping && !fs.existsSync(path.resolve(root, proposal))) { console.error(`proposal file not found: ${proposal}`); return 2; }
+    job = {
+      id, ts: nowIso(), kind: ping ? 'ping' : 'evolve',
+      skill: ping ? '' : skill, proposal: ping ? '' : path.resolve(root, proposal), auth: ping ? 'user' : auth,
+      status: 'queued', seen: false
+    };
   }
-  if (!ping && !fs.existsSync(path.resolve(root, proposal))) { console.error(`proposal file not found: ${proposal}`); return 2; }
-  const job = {
-    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-    ts: nowIso(), kind: ping ? 'ping' : 'evolve',
-    skill: ping ? '' : skill, proposal: ping ? '' : path.resolve(root, proposal), auth: ping ? 'user' : auth,
-    status: 'queued', seen: false
-  };
   fs.mkdirSync(dataDir, { recursive: true });
   fs.appendFileSync(jobsPath, JSON.stringify(job) + '\n', 'utf8');
   if (!has('--no-spawn')) {
