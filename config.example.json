@@ -1,7 +1,7 @@
 {
   "mode": "threshold",
   "threshold": 5,
-  "isolation": "inline",
+  "isolation": "background",
   "cadence": "weekly",
   "background": {
     "runner": "auto",

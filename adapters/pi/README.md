@@ -37,9 +37,11 @@ machine across every harness.
   protocol allows.
 - Re-entry guard: the evaluation turn's own `agent_settled` is skipped
   once; pending cleanup is the durable loop guard.
-- `isolation: subagent` does not apply: pi extensions have no subagent
-  mechanism, so the evaluation runs inline (the QUIETLY clause still caps
-  visible narration at two lines).
+- `isolation: background` and `subagent` do not apply yet: the extension
+  renders the protocol in-process (no queue hand-off, no subagent
+  mechanism), so the evaluation runs inline (the QUIETLY clause still caps
+  visible narration at two lines). Approved edits still go to the
+  background worker.
 
 ## Verification status
 

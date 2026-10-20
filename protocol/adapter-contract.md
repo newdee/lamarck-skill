@@ -64,12 +64,21 @@ gate gives them veto power over judge verdicts. The reference trigger
 implements this against Claude Code transcripts; an adapter without a
 transcript injects `null`.
 
-Context isolation: with `isolation: subagent` in `config.json` the
-reference trigger injects a short delegation brief instead of the protocol
-body - the executor spawns one subagent that reads the protocol from disk
-and the evidence from the transcript, and the main context receives one
-line. Command-style adapters that delegate to the reference trigger inherit
-this; an in-process adapter without subagents (pi) runs inline. Every
+Context isolation (`isolation` in `config.json`): with `background` (the
+default) the reference trigger injects nothing and never blocks - it
+writes one `evaluate` job to `data/jobs.jsonl` (session, entries,
+transcript pointers, objective lines, cadence state) and spawns the
+background worker (role 4), whose headless agent executes this same
+protocol outside the session; the executor role is then played by that
+headless agent, non-interactively (every gate-passing proposal goes to
+`suggestions/`). With no headless CLI the worker leaves `data/.no-runner`
+and the trigger falls back to `inline` for a day. With `subagent` the
+trigger injects a short delegation brief instead of the protocol body - the
+executor spawns one subagent that reads the protocol from disk and the
+evidence from the transcript, and the main context receives one line. With
+`inline` the protocol body itself is injected. Command-style adapters that
+delegate to the reference trigger inherit all three; an in-process adapter
+without subagents or a queue hand-off (pi) runs inline. Every
 injection starts with `[lamarck: ephemeral - omit from compaction
 summaries]` so the harness's compaction drops it first. The
 model must have read/write access to the lamarck directory and read access
@@ -87,14 +96,17 @@ to `suggestions/<skill>.md`, the same rule as non-interactive sessions.
 
 ### 4. Background runner - evolution outside the session
 
-Applying an approved (or auto-tier) proposal is not done in the user's
-session. The session enqueues a job (`scripts/evolve-worker.js enqueue`)
-and returns to the user's work; a detached worker hands the job to the
-harness's **headless CLI** with least privilege - the lamarck directory
-and the skills directory only - which applies the edit under the gate
-rules, runs replay validation, ledgers the verify record and appends one
-line to `data/inbox.md`. The worker then sends an OS notification; the
-next `/lamarck` surfaces unread results.
+Neither the evaluation (with `isolation: background`) nor the application
+of an approved or auto-tier proposal is done in the user's session. The
+trigger or the session enqueues a job (`data/jobs.jsonl`, kinds
+`evaluate` / `evolve` / `upgrade` / `ping`) and returns to the user's work;
+a detached worker hands the job to the harness's **headless CLI** with
+least privilege - the lamarck directory and the skills directory only -
+which runs the protocol or applies the edit under the gate rules, runs
+replay validation, ledgers the verify record and appends one line to
+`data/inbox.md`. The worker then sends an OS notification (for an
+evaluation only when its line says `user: yes`); the next `/lamarck`
+surfaces unread results.
 
 An adapter contributes its headless command template in `config.json`
 `background.runners.<name>` with `{prompt}`, `{root}` and `{skills}`
@@ -102,11 +114,22 @@ placeholders. Shipped: `claude -p --add-dir --allowedTools ...`,
 `codex exec -C -s workspace-write`, `pi -p`. A harness with no headless
 CLI sets `background.runner` to `none` and edits land in-session as before.
 
+Every brief routes writes through `scripts/store.js` (`append`, `write`,
+`edit`, `pending-drop`): Claude Code refuses its file-editing tools under
+`~/.claude` in headless mode (protected paths; allow rules and
+`acceptEdits` do not lift it) while shell commands run, and the script
+makes the fence (lamarck and skills directories only; never `scripts/`,
+`adapters/`, `bin/`, `config.json`, `.git`) and the edit bound (3
+replacements x 10 lines, unique old text) mechanical. A runner template
+must therefore allow `node` through the harness's shell tool.
+
 ## Adapter notes per harness
 
 - **Claude Code** (reference, shipped): collector = PostToolUse hook,
-  trigger + executor = Stop hook whose block reason carries the protocol -
-  the turn's own model evaluates at zero marginal cost. Scripts stay in
+  trigger = Stop hook - by default it queues an `evaluate` job for the
+  background runner (`claude -p`) and the session sees nothing; with
+  `isolation: inline` its block reason carries the protocol and the
+  turn's own model evaluates at zero marginal cost. Scripts stay in
   `scripts/` (path frozen: existing installs reference it from
   settings.json; other adapters live in `adapters/<harness>/`).
 - **Codex** (shipped, `adapters/codex/`): Codex >= 0.142 hooks speak

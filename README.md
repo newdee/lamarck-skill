@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 [![npm](https://img.shields.io/npm/v/lamarck-skill)](https://www.npmjs.com/package/lamarck-skill)
 [![ci](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/newdee/lamarck-skill/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![selftest](https://img.shields.io/badge/selftest-192%2F192-brightgreen)](scripts/selftest.js)
+[![selftest](https://img.shields.io/badge/selftest-232%2F232-brightgreen)](scripts/selftest.js)
 
 **A production self-evolving system for agent skills.** Not a one-shot
 optimizer for a hand-picked skill: install once, and every skill you have
@@ -46,8 +46,9 @@ to a 3-judge majority only on close calls) and human-in-the-loop checkpoints.
    skill invocation → `data/pending.jsonl`, stamped with the target skill's
    content hash (`ver`) for per-version health windows.
 2. **Light loop** (trigger + executor — a Stop hook in the reference
-   adapter): a mini evaluation protocol injected at turn end — no SKILL.md
-   reload per turn. Four-dimension verdicts, judged
+   adapter): at turn end the hook queues the evaluation for a headless run
+   outside your session (default), or injects a mini protocol into the
+   turn (`isolation: inline`) — never a SKILL.md reload. Four-dimension verdicts, judged
    against the skill's own rubric (scenario-matched entries only) →
    `data/ledger.jsonl`; a user correction crystallizes into a rubric entry
    (n=1, provenance required); lessons → `data/learnings/`; regression cases →
@@ -121,7 +122,7 @@ with its own judges proves nothing; LLM self-evaluation accuracy is ~46% per
 the SkillLens paper darwin-skill itself cites). Three tiers instead:
 
 1. **Mechanism self-test** — `node scripts/selftest.js`, isolated temp
-   sandbox, zero contact with live telemetry. Currently **192/192**: hook
+   sandbox, zero contact with live telemetry. Currently **232/232**: hook
    logging, genome stamping, threshold/every/manual triggers, config
    fallbacks, session isolation, loop guards, byte-reproducible output,
    gitignore boundaries, and liveness of the protocol clauses the light loop
@@ -229,7 +230,7 @@ created from `config.example.json` on install):
 | `mode` | `threshold` | when the light loop runs: `every` turn, `manual` only, or once `threshold` entries accumulate |
 | `threshold` | `5` | the batch size for `threshold` mode |
 | `cadence` | `weekly` | how often the *updates* happen — escalation to proposals, background edits, backlog reminders — batched into one window per period (`weekly` / `daily` / `continuous`). Telemetry and silent evaluation stay continuous; `/lamarck` opens a window any time |
-| `isolation` | `inline` | where the evaluation runs: `inline` in the turn's own context (free; the protocol lands there), or `subagent` — one delegated agent reads the protocol from disk and the evidence from the on-disk transcript, and the main context receives a single line (costs an extra model call) |
+| `isolation` | `background` | where the evaluation runs: `background` — the stop hook queues a job and your session sees nothing; a headless CLI (`claude -p`, `codex exec`, `pi -p`) runs the loop outside the session and only notifies you when something needs you (falls back to `inline` when no headless CLI exists); `subagent` — one delegated agent in your session, the main context receives a single line; `inline` — in the turn's own context (no extra model call; the protocol lands there) |
 | `evolution.default` | `observe` | trust tier for every unlisted skill: evidence accumulates, nothing is edited |
 | `evolution.evolve` / `suggest` / `auto` | `["lamarck"]` / `[]` / `[]` | per-tier skill lists — `evolve` asks you per edit, `suggest` only files proposals, `auto` is earned autonomy (replay-gated) |
 | `stability.streak` / `sample` | `10` / `5` | clean evaluations before a skill goes stable; spot-check rate afterwards |
@@ -246,22 +247,33 @@ created from `config.example.json` on install):
 | `cadence weekly\|daily\|continuous` | switch how often updates are batched |
 | `evolve list` / `add <skill> [tier]` / `remove <skill>` | manage the trust ladder |
 
-**Background evolution** — approving a proposal (or an auto-tier skill
-passing the gate) never blocks your session: the session enqueues a job
-and returns to your work. A detached worker hands it to your harness's
-headless CLI (`claude -p`, `codex exec`, `pi -p` — templates in
+**Everything runs backstage** — by default neither the evaluation nor an
+edit touches your session. The stop hook queues an `evaluate` job and
+returns at once; approving a proposal (or an auto-tier skill passing the
+gate) likewise enqueues a job. A detached worker hands each job to your
+harness's headless CLI (`claude -p`, `codex exec`, `pi -p` — templates in
 `config.json` `background.runners`, least privilege: the lamarck and skills
-directories only), which applies the edit under the gate rules, replays,
-ledgers the verify record, and writes one line to `data/inbox.md`. You get
-an OS notification; the next `/lamarck` shows unread results.
-`background.runner: none` restores in-session edits.
+directories only), which runs the protocol or applies the edit under the
+gate rules, replays, ledgers the verify record, and writes one line to
+`data/inbox.md`. You get an OS notification only when something needs you
+(a proposal, a crystallized correction, a failure); the next `/lamarck`
+shows unread results. No headless CLI on PATH: the worker leaves
+`data/.no-runner` and the evaluation runs inline for a day;
+`background.runner: none` makes that permanent and restores in-session
+edits. Cost: one headless run per trigger (every `threshold` invocations
+per session), reading only the transcript slice around each activation;
+measured on a real session: 145 s for one entry, 329 s for two. The
+headless agent writes only through `scripts/store.js` (Claude Code refuses
+its own file-editing tools under `~/.claude` in headless mode), which
+enforces the directory fence and the 3 x 10-line edit bound in code.
 
 **Context hygiene** — nothing can delete from a live context, so the
-defenses keep lamarck out of it: batched triggers, a 3.6k-char protocol
-budget, a QUIETLY clause (at most two visible lines per evaluation),
-stable skills reduced to a one-line glance, `isolation: subagent` to move
-the whole evaluation out of the main context, and an ephemeral marker on
-every injection so the harness's compaction drops it first.
+defenses keep lamarck out of it: background isolation (the default: zero
+injection), batched triggers, a 3.6k-char protocol budget, a QUIETLY
+clause (at most two visible lines per inline evaluation), stable skills
+reduced to a one-line glance, `isolation: subagent` as the middle ground,
+and an ephemeral marker on every injection so the harness's compaction
+drops it first.
 
 **Progress without an agent** — the evidence report is a plain script; the
 model never computes the numbers, it only narrates them:

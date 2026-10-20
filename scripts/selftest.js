@@ -35,7 +35,7 @@ for (const ad of ['codex', 'cursor', 'generic']) {
   }
 }
 const cfgPath = path.join(sb, 'config.json');
-fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5}', 'utf8');
+fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5,"isolation":"inline"}', 'utf8');
 
 const post = path.join(sb, 'scripts', 'posttool-skill.js');
 const stop = path.join(sb, 'scripts', 'stop-evaluate.js');
@@ -43,7 +43,9 @@ const pending = path.join(sb, 'data', 'pending.jsonl');
 const offFile = path.join(sb, 'off');
 
 const postCall = (input) => spawnSync(process.execPath, [post], { input, encoding: 'utf8' }).status;
-const stopCall = (input) => (spawnSync(process.execPath, [stop], { input, encoding: 'utf8' }).stdout || '');
+// LAMARCK_NO_SPAWN: background isolation must never launch a real worker
+// from inside the selftest sandbox.
+const stopCall = (input, env) => (spawnSync(process.execPath, [stop], { input, encoding: 'utf8', env: Object.assign({}, process.env, { LAMARCK_NO_SPAWN: '1' }, env || {}) }).stdout || '');
 const pendingLines = () => (fs.existsSync(pending) ? fs.readFileSync(pending, 'utf8').split('\n').filter(l => l.trim()) : []);
 const lastRec = () => JSON.parse(pendingLines().at(-1));
 const gitIgnored = (p) => spawnSync('git', ['-C', repo, 'check-ignore', '-q', p]).status === 0;
@@ -210,7 +212,7 @@ try {
     A('2026-09-01T10:36:30.000Z', tu('Bash', { command: 'late' })),
     U('2026-09-01T10:36:31.000Z', [tr('Exit code 1', true)])
   ].join('\n') + '\n', 'utf8');
-  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":4}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":4,"isolation":"inline"}', 'utf8');
   const pend = (ts, skill, transcript) => JSON.stringify({ ts, session: 'sobj', skill, args: '', ver: '', harness: 'claude-code', transcript });
   fs.writeFileSync(pending, [
     pend('2026-09-01T10:00:00Z', 'sk-a', trFile),
@@ -234,7 +236,7 @@ try {
   check('stop: protocol makes the model copy objective verbatim and demands quoted corrections',
     o.includes('copied verbatim or null') && o.includes('quoted verbatim in note'));
   fs.writeFileSync(pending, '', 'utf8');
-  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5,"isolation":"inline"}', 'utf8');
 
   // ---------- report.js: evidence numbers computed by code ----------
   // A fixture ledger with two versions of one skill, objective signals, a
@@ -300,9 +302,14 @@ try {
   fs.mkdirSync(path.join(wkSb, 'suggestions'), { recursive: true });
   fs.copyFileSync(path.join(repo, 'scripts', 'evolve-worker.js'), path.join(wkSb, 'scripts', 'evolve-worker.js'));
   const fakeRunner = path.join(wkSb, 'fake-runner.js');
+  // On Windows a {prompt} template receives a pointer to the brief on disk
+  // (cmd.exe cannot carry JSON quotes); the fakes dereference it like a
+  // real agent would.
+  const DEREF = "let p=process.argv.slice(2).join(' ');const mm=/^Read the file (.+?) and follow it/.exec(p);if(mm){p=fs.readFileSync(mm[1],'utf8')}";
   fs.writeFileSync(fakeRunner,
-    "const fs=require('fs');const p=process.argv.slice(2).join(' ');const m=/\\[([a-z0-9-]+)\\]/.exec(p);" +
-    "const f=/to the file (\\S+?):|to (\\S+?inbox\\.md) that/.exec(p);const file=(f&&(f[1]||f[2]))||'';" +
+    "const fs=require('fs');" + DEREF + "const m=/\\[([a-z0-9-]+)\\]/.exec(p);" +
+    "const f=/to the file (\\S+?) \\(|to (\\S+?inbox\\.md) that/.exec(p);const file=(f&&(f[1]||f[2]))||'';" +
+    "if(process.env.FAKE_AGENT_FAIL){fs.appendFileSync(file, `- [${m[1]}] FAILED: fake agent could not apply the proposal\\n`);process.exit(0)}" +
     "if(process.env.FAKE_FAIL){process.exit(3)}" +
     "fs.writeFileSync(require('path').join(require('path').dirname(process.argv[1]), 'last-prompt.txt'), p);" +
     "fs.appendFileSync(file, `- [${m[1]}] fake agent: applied, replay better, kept\\n`);", 'utf8');
@@ -331,19 +338,48 @@ try {
   check('worker: the brief binds the agent to SKILL.md gate rules, names the proposal, the authorization and the confinement',
     lastPrompt.includes('SKILL.md') && lastPrompt.includes('Iron Rules') && lastPrompt.includes(path.join(wkSb, 'suggestions', 'demo.md')) &&
     lastPrompt.includes('approved this proposal') && lastPrompt.includes('never touch anything outside') && lastPrompt.includes('revert'));
+  check('worker: every brief routes writes through store.js (headless file-editing tools are refused under the agent directory)',
+    lastPrompt.includes(path.join(wkSb, 'scripts', 'store.js')) && lastPrompt.includes("'edit <rel>'") && lastPrompt.includes('at most 3 replacements') &&
+    lastPrompt.includes('refuses scripts/, adapters/, bin/, config.json'));
   check('worker: lock released after the run', !fs.existsSync(path.join(wkSb, 'data', '.worker.lock')));
+  const doneId = (JSON.parse(jobsAfter.split('\n')[0]) || {}).id;
+  const runLog = path.join(wkSb, 'data', 'worker-logs', `${doneId}.log`);
+  check('worker: the runner\'s command, brief and full output are kept per job under data/worker-logs/',
+    fs.existsSync(runLog) && fs.readFileSync(runLog, 'utf8').includes('--- brief ---') && fs.readFileSync(runLog, 'utf8').includes('--- output (exit 0) ---') &&
+    fs.readFileSync(runLog, 'utf8').includes('Iron Rules'));
+  const cmdLine = fs.existsSync(runLog) ? fs.readFileSync(runLog, 'utf8').split('\n')[0] : '';
+  check(process.platform === 'win32'
+    ? 'worker: on Windows a {prompt} template gets a pointer to the brief file, never the brief through cmd.exe'
+    : 'worker: a {prompt} template gets the brief itself as the argument',
+    process.platform === 'win32'
+      ? (cmdLine.includes('.brief.md') && !cmdLine.includes('Iron Rules') && !cmdLine.includes('\\"') && fs.existsSync(path.join(wkSb, 'data', 'worker-logs', `${doneId}.brief.md`)))
+      : cmdLine.includes('Iron Rules'));
   w = wk(['status']);
   check('worker: status reports one unread result with its inbox line', w.stdout.includes('1 unread') && w.stdout.includes('fake agent'));
   w = wk(['status', '--ack']);
   check('worker: status --ack marks it read', w.stdout.includes('acknowledged 1') && wk(['status']).stdout.includes('0 unread'));
+  check('worker: the runner inherits LAMARCK_HEADLESS and a headless enqueue cannot claim user authorization',
+    wk(['enqueue', '--skill', 'demo', '--proposal', 'suggestions/demo.md', '--auth', 'user', '--no-spawn'], { LAMARCK_HEADLESS: '1' }).status === 2 &&
+    wk(['enqueue', '--upgrade', '--from', '1', '--to', '2', '--notes', 'suggestions/demo.md', '--files', 'SKILL.md', '--no-spawn'], { LAMARCK_HEADLESS: '1' }).status === 2 &&
+    wk(['enqueue', '--skill', 'demo', '--proposal', 'suggestions/demo.md', '--auth', 'auto', '--no-spawn'], { LAMARCK_HEADLESS: '1' }).status === 0 &&
+    fs.readFileSync(path.join(wkSb, 'scripts', 'evolve-worker.js'), 'utf8').includes("LAMARCK_HEADLESS: '1'"));
+  wk(['run'], { FAKE_AGENT_FAIL: '1' });
+  check('worker: an agent that writes its own FAILED line yields a failed job, not done',
+    /"auth":"auto"[^\n]*"status":"failed"/.test(fs.readFileSync(jobsFile, 'utf8')) && fs.readFileSync(jobsFile, 'utf8').includes('agent reported failure'));
+  wk(['status', '--ack']);
   wk(['enqueue', '--ping', '--no-spawn']);
   w = wk(['run'], { FAKE_FAIL: '1' });
   check('worker: a failing runner yields a failed job and a FAILED inbox line, exit 0',
     w.status === 0 && fs.readFileSync(jobsFile, 'utf8').includes('"status":"failed"') && fs.readFileSync(path.join(wkSb, 'data', 'inbox.md'), 'utf8').includes('FAILED: runner exited 3'));
-  fs.writeFileSync(path.join(wkSb, 'data', '.worker.lock'), '1', 'utf8');
+  fs.writeFileSync(path.join(wkSb, 'data', '.worker.lock'), String(process.pid), 'utf8');
   wk(['enqueue', '--ping', '--no-spawn']);
-  check('worker: a fresh lock makes a second run stand down', wk(['run']).stdout.includes('already running') && fs.readFileSync(jobsFile, 'utf8').split('"status":"queued"').length === 2);
-  fs.unlinkSync(path.join(wkSb, 'data', '.worker.lock'));
+  check('worker: a lock held by a live process makes a second run stand down', wk(['run']).stdout.includes('already running') && fs.readFileSync(jobsFile, 'utf8').split('"status":"queued"').length === 2);
+  fs.writeFileSync(path.join(wkSb, 'data', '.worker.lock'), '2147483646', 'utf8');
+  check('worker: a lock whose owner is dead is taken over at once (no two-hour wait)',
+    !wk(['run'], { FAKE_FAIL: '1' }).stdout.includes('already running') && fs.readFileSync(jobsFile, 'utf8').split('"status":"queued"').length === 1 &&
+    !fs.existsSync(path.join(wkSb, 'data', '.worker.lock')));
+  check('worker: the queue mutex is released after enqueue, run and ack', !fs.existsSync(path.join(wkSb, 'data', '.jobs.lock')));
+  wk(['enqueue', '--ping', '--no-spawn']); // the stdin-channel run below expects one queued ping
   // stdin channel (claude-style template without {prompt}) + verdict by
   // inbox content: a runner that exits 0 but writes nothing is NOT done.
   const stdinRunner = path.join(wkSb, 'stdin-runner.js');
@@ -374,12 +410,123 @@ try {
     upPrompt.includes('semantic coherence'));
   check('worker: upgrade job verified by its inbox line like any evolve job',
     fs.readFileSync(jobsFile, 'utf8').includes('"kind":"upgrade"') && /"kind":"upgrade"[^\n]*"status":"done"/.test(fs.readFileSync(jobsFile, 'utf8')));
+  // evaluate kind (background isolation): the stop hook writes the job
+  // directly; the worker's brief must hand the headless agent everything
+  // the subagent brief carries, plus the non-interactive rules.
+  const evalJob = {
+    id: 'ev1-test', ts: '2026-10-20T00:00:00Z', kind: 'evaluate', session: 'sess-9', harness: 'claude-code',
+    entries: [{ skill: 'alpha', ts: '2026-10-20T00:00:00Z', transcript: 'C:/tmp/t1.jsonl' }, { skill: 'beta', ts: '2026-10-20T00:01:00Z', transcript: '' }],
+    objective: ['alpha@2026-10-20T00:00:00Z -> {"tools":3,"errors":0,"nonzero_exit":0,"retries":0,"user_turns":1,"lines":9}', 'beta@2026-10-20T00:01:00Z -> null (no transcript pointer)'],
+    cadence: 'weekly', window_open: false, next_window: '2026-10-27T00:00:00Z', backlog: 2, status: 'queued', seen: false
+  };
+  const evalRunner = path.join(wkSb, 'eval-runner.js');
+  fs.writeFileSync(evalRunner,
+    "const fs=require('fs');" + DEREF + "const m=/\\[([a-z0-9-]+)\\]/.exec(p);const f=/to the file (\\S+?) \\(|to (\\S+?inbox\\.md) that/.exec(p);const file=f[1]||f[2];" +
+    "if(/pipeline check/.test(p)){fs.appendFileSync(file, `- [${m[1]}] ping ok\\n`);process.exit(0)}" +
+    "fs.writeFileSync(require('path').join(__dirname,'last-prompt.txt'),p);" +
+    "if(process.env.FAKE_CHAIN){require('child_process').spawnSync(process.execPath,[require('path').join(__dirname,'scripts','evolve-worker.js'),'enqueue','--ping','--no-spawn'],{stdio:'ignore'})}" +
+    "fs.appendFileSync(file, `- [${m[1]}] evaluated 2, gaps 0, user: ${process.env.FAKE_USER||'no'} - all clean\\n`);", 'utf8');
+  fs.writeFileSync(path.join(wkSb, 'config.json'), JSON.stringify({ background: { runner: 'ev', runners: { ev: ['node', evalRunner, '{prompt}'] } } }), 'utf8');
+  fs.writeFileSync(jobsFile, JSON.stringify(evalJob) + '\n', 'utf8');
+  wk(['status', '--ack']);
+  w = wk(['run']);
+  const evPrompt = fs.readFileSync(path.join(wkSb, 'last-prompt.txt'), 'utf8');
+  check('worker: evaluate brief names the protocol file, the session, every entry, the transcript and the objective lines verbatim',
+    evPrompt.includes(path.join('protocol', 'light-loop.md')) && evPrompt.includes('session sess-9') && evPrompt.includes('alpha@2026-10-20T00:00:00Z') &&
+    evPrompt.includes('beta@2026-10-20T00:01:00Z') && evPrompt.includes('C:/tmp/t1.jsonl') && evPrompt.includes('"tools":3') && evPrompt.includes('null (no transcript pointer)'));
+  check('worker: evaluate brief names store.js, the pending-drop for its session and (ping) the store command for the inbox line',
+    evPrompt.includes('pending-drop --session sess-9') && evPrompt.includes(path.join(wkSb, 'scripts', 'store.js')) &&
+    stdinPrompt.includes('store.js append data/inbox.md --line'));
+  check('worker: evaluate brief carries the closed cadence window, the backlog, the non-interactive proposal rule and the auto-tier route',
+    evPrompt.includes('next window 2026-10-27T00:00:00Z - log only') && evPrompt.includes('2 pending entries from other sessions') &&
+    evPrompt.includes('cannot ask the user') && evPrompt.includes('suggestions/<skill>.md') && evPrompt.includes('--auth auto --no-spawn') &&
+    evPrompt.includes("'- [ev1-test] '") && evPrompt.includes('user: yes|no'));
+  let evJobs = fs.readFileSync(jobsFile, 'utf8');
+  check('worker: a quiet evaluation (user: no) is done, pre-acknowledged and raises no unread result',
+    /"kind":"evaluate"[^\n]*"status":"done"/.test(evJobs) && /"kind":"evaluate"[^\n]*"seen":true/.test(evJobs) && wk(['status']).stdout.includes('0 unread'));
+  fs.writeFileSync(jobsFile, JSON.stringify(Object.assign({}, evalJob, { id: 'ev2-test', window_open: true })) + '\n', 'utf8');
+  wk(['run'], { FAKE_USER: 'yes' });
+  evJobs = fs.readFileSync(jobsFile, 'utf8');
+  check('worker: an evaluation that needs the user (user: yes) stays unread and the open window is briefed',
+    /"id":"ev2-test"[^\n]*"seen":false/.test(evJobs) && wk(['status']).stdout.includes('1 unread') &&
+    fs.readFileSync(path.join(wkSb, 'last-prompt.txt'), 'utf8').includes('the update window is open'));
+  fs.writeFileSync(jobsFile, JSON.stringify(Object.assign({}, evalJob, { id: 'ev3-test' })) + '\n', 'utf8');
+  wk(['run'], { FAKE_CHAIN: '1' });
+  evJobs = fs.readFileSync(jobsFile, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+  check('worker: a job enqueued during the run is drained by the same run (the auto-tier chain)',
+    evJobs.length === 2 && evJobs.every(j => j.status === 'done') && evJobs[1].kind === 'ping');
+  check('worker: a run with a runner clears .no-runner', !fs.existsSync(path.join(wkSb, 'data', '.no-runner')));
   fs.writeFileSync(path.join(wkSb, 'config.json'), '{"background":{"runner":"none"}}', 'utf8');
   wk(['enqueue', '--ping', '--no-spawn']);
   wk(['run']);
   check('worker: runner none fails the job gracefully with a clear inbox reason',
     fs.readFileSync(path.join(wkSb, 'data', 'inbox.md'), 'utf8').includes('no headless runner available'));
+  check('worker: runner none leaves the .no-runner flag for the stop hook\'s inline fallback',
+    fs.existsSync(path.join(wkSb, 'data', '.no-runner')) && fs.readFileSync(path.join(wkSb, 'data', '.no-runner'), 'utf8').includes('no headless runner'));
   fs.rmSync(wkSb, { recursive: true, force: true });
+
+  // ---------- store.js: the headless write path (fence + bound mechanical) ----------
+  const stBase = fs.mkdtempSync(path.join(os.tmpdir(), 'lamarck-store-'));
+  const stRoot = path.join(stBase, 'skills', 'lamarck');
+  fs.mkdirSync(path.join(stRoot, 'scripts'), { recursive: true });
+  fs.mkdirSync(path.join(stRoot, 'data'), { recursive: true });
+  fs.mkdirSync(path.join(stBase, 'skills', 'other'), { recursive: true });
+  fs.mkdirSync(path.join(stBase, 'elsewhere'), { recursive: true });
+  fs.copyFileSync(path.join(repo, 'scripts', 'store.js'), path.join(stRoot, 'scripts', 'store.js'));
+  const st = (args, input) => spawnSync(process.execPath, [path.join(stRoot, 'scripts', 'store.js'), ...args], { input, encoding: 'utf8' });
+  let s = st(['append', 'data/ledger.jsonl', '--line', '{"ts":"t1"}']);
+  st(['append', 'data/ledger.jsonl'], '{"ts":"t2"}\n');
+  check('store: append adds one line from --line or stdin, creating the file',
+    s.status === 0 && s.stdout.includes('ok append data/ledger.jsonl') && fs.readFileSync(path.join(stRoot, 'data', 'ledger.jsonl'), 'utf8') === '{"ts":"t1"}\n{"ts":"t2"}\n');
+  s = st(['write', 'data/maturity.json'], '{"alpha":{"state":"active"}}\n');
+  check('store: write replaces a whole file from stdin', s.status === 0 && fs.readFileSync(path.join(stRoot, 'data', 'maturity.json'), 'utf8') === '{"alpha":{"state":"active"}}\n');
+  fs.writeFileSync(path.join(stBase, 'skills', 'other', 'SKILL.md'), 'line a\r\nline b\r\nline c\r\n', 'utf8');
+  s = st(['edit', '../other/SKILL.md'], JSON.stringify({ edits: [{ old: 'line b', new: 'line B\nline B2' }] }));
+  check('store: edit applies a bounded replacement in a sibling skill and keeps its CRLF line endings',
+    s.status === 0 && fs.readFileSync(path.join(stBase, 'skills', 'other', 'SKILL.md'), 'utf8') === 'line a\r\nline B\r\nline B2\r\nline c\r\n');
+  // Each refused case would apply if its one rule were missing - so a
+  // removed rule is a named failure, not a pass by accident.
+  fs.writeFileSync(path.join(stBase, 'skills', 'other', 'FOUR.md'), 'one\ntwo\nthree\nfour\n', 'utf8');
+  check('store: edit refuses ambiguous, oversized and too many replacements',
+    st(['edit', '../other/SKILL.md'], JSON.stringify({ edits: [{ old: 'line', new: 'x' }] })).status === 2 &&
+    st(['edit', '../other/SKILL.md'], JSON.stringify({ edits: [{ old: 'line a', new: 'x\n'.repeat(11) }] })).status === 2 &&
+    st(['edit', '../other/FOUR.md'], JSON.stringify({ edits: ['one', 'two', 'three', 'four'].map(w => ({ old: w, new: w.toUpperCase() })) })).status === 2 &&
+    fs.readFileSync(path.join(stBase, 'skills', 'other', 'FOUR.md'), 'utf8') === 'one\ntwo\nthree\nfour\n' &&
+    fs.readFileSync(path.join(stBase, 'skills', 'other', 'SKILL.md'), 'utf8') === 'line a\r\nline B\r\nline B2\r\nline c\r\n');
+  check('store: fence refuses code, config, .git and anything outside the skills directory',
+    st(['append', 'scripts/store.js', '--line', 'x']).status === 2 && st(['append', 'adapters/x.js', '--line', 'x']).status === 2 &&
+    st(['append', 'bin/install.js', '--line', 'x']).status === 2 && st(['append', 'config.json', '--line', 'x']).status === 2 &&
+    st(['append', '.git/HEAD', '--line', 'x']).status === 2 && st(['append', '../other/.git/config', '--line', 'x']).status === 2 &&
+    st(['append', '../../elsewhere/x.md', '--line', 'x']).status === 2 && st(['append', path.join(stBase, 'elsewhere', 'y.md'), '--line', 'x']).status === 2 &&
+    !fs.existsSync(path.join(stRoot, 'adapters')) && !fs.existsSync(path.join(stBase, 'elsewhere', 'x.md')));
+  check('store: genome files inside lamarck stay writable (SKILL.md, protocol, rubrics, suggestions)',
+    st(['append', 'suggestions/alpha.md', '--line', '# p']).status === 0 && st(['append', 'data/rubrics/alpha.md', '--line', '- r']).status === 0 &&
+    st(['write', 'SKILL.md'], 'x\n').status === 0 && st(['write', 'protocol/light-loop.md'], 'y\n').status === 0);
+  check('store: write never rewrites an existing genome, ledger or learnings file - only designated state files',
+    st(['write', 'SKILL.md'], 'z\n').status === 2 && st(['write', 'data/ledger.jsonl'], '{}\n').status === 2 && st(['write', '../other/SKILL.md'], 'z\n').status === 2 &&
+    st(['write', 'data/maturity.json'], '{}\n').status === 0 && st(['write', 'suggestions/alpha.md'], '# p2\n').status === 0 && st(['write', 'data/rubrics/alpha.md'], '- r2\n').status === 0 &&
+    st(['write', 'data/learnings/alpha.md'], 'new\n').status === 0 && st(['write', 'data/learnings/alpha.md'], 'again\n').status === 2 &&
+    fs.readFileSync(path.join(stRoot, 'SKILL.md'), 'utf8') === 'x\n');
+  check('store: the worker\'s own state and pending.jsonl are refused (pending changes only through pending-drop)',
+    st(['append', 'data/jobs.jsonl', '--line', '{}']).status === 2 && st(['write', 'data/.worker.lock'], '1').status === 2 && st(['append', 'data/worker-logs/x.log', '--line', 'x']).status === 2 &&
+    st(['append', 'data/pending.jsonl', '--line', '{}']).status === 2 && st(['write', 'data/pending.jsonl'], '{}\n').status === 2 && st(['append', 'data/hook-errors.log', '--line', 'x']).status === 2);
+  check('store: the fence is case-insensitive and refuses Windows name tricks (trailing dot/space, 8.3 names, streams)',
+    st(['append', 'SCRIPTS/x.js', '--line', 'x']).status === 2 && st(['append', 'Config.JSON', '--line', 'x']).status === 2 && st(['append', 'data/JOBS.jsonl', '--line', 'x']).status === 2 &&
+    st(['append', 'config.json.', '--line', 'x']).status === 2 && st(['append', 'config.json ', '--line', 'x']).status === 2 && st(['append', 'CONFIG~1.JSO', '--line', 'x']).status === 2 &&
+    st(['append', 'config.json::$DATA', '--line', 'x']).status === 2 && !fs.existsSync(path.join(stRoot, 'scripts', 'x.js')) && st(['append', 'data/..notes.md', '--line', 'ok']).status === 0);
+  let linkOk = false;
+  try { fs.symlinkSync(path.join(stBase, 'elsewhere'), path.join(stBase, 'skills', 'other', 'escape'), 'junction'); linkOk = true; } catch { /* no symlink privilege: skip */ }
+  if (linkOk) {
+    check('store: a symlink inside the skills directory cannot point a write outside it',
+      st(['append', '../other/escape/leak.md', '--line', 'x']).status === 2 && !fs.existsSync(path.join(stBase, 'elsewhere', 'leak.md')));
+  }
+  fs.writeFileSync(path.join(stRoot, 'data', 'pending.jsonl'), '{"session":"a","skill":"s1"}\n{"session":"b","skill":"s2"}\nnot json\n{"session":"a","skill":"s3"}\n', 'utf8');
+  s = st(['pending-drop', '--session', 'a']);
+  check('store: pending-drop removes only that session\'s lines and keeps corrupt ones',
+    s.status === 0 && s.stdout.includes('2 dropped, 2 kept') && fs.readFileSync(path.join(stRoot, 'data', 'pending.jsonl'), 'utf8') === '{"session":"b","skill":"s2"}\nnot json\n');
+  check('store: unknown command and empty input are refused with exit 2',
+    st(['frobnicate']).status === 2 && st(['append', 'data/x.md'], '').status === 2 && st(['write', 'data/x.md'], '').status === 2 && st(['pending-drop']).status === 2);
+  fs.rmSync(stBase, { recursive: true, force: true });
 
   // ---------- adapters: codex + cursor shims over the reference scripts ----------
   // The shims translate each harness's documented stdin/stdout contract and
@@ -410,7 +557,7 @@ try {
   shim('cursor', 'posttool.js', '{"conversation_id":"cu1","transcript_path":"/skills/decoy/SKILL.md","workspace_roots":["/skills/decoy2/SKILL.md"],"tool_call":{"path":"/x/readme.md"}}');
   check('cursor posttool: SKILL.md inside transcript/workspace fields is not an activation', pendingLines().length === 3);
   // stop shims: fill to the threshold for one codex session, then evaluate
-  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":2}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":2,"isolation":"inline"}', 'utf8');
   shim('codex', 'posttool.js', '{"session_id":"cx1","tool_name":"read","tool_input":{"path":"/s/otherskill/SKILL.md"}}');
   const latchC = path.join(sb, 'data', '.codex-stop-latch.json');
   let so = shim('codex', 'stop.js', '{"session_id":"cx1","hook_event_name":"Stop","last_assistant_message":"done"}').stdout || '';
@@ -462,20 +609,20 @@ try {
     gStop('{"thread_id":"g1","stop_hook_active":true}', 'block') === '');
   try { fs.unlinkSync(latchC); } catch { /* may not exist */ }
   try { fs.unlinkSync(path.join(sb, 'data', '.cursor-stop-latch.json')); } catch { /* may not exist */ }
-  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":5,"isolation":"inline"}', 'utf8');
 
   // ---------- stop: mode variants & config fallbacks ----------
-  fs.writeFileSync(cfgPath, '{"mode":"every"}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"inline"}', 'utf8');
   fs.writeFileSync(pending, '', 'utf8');
   postCall('{"session_id":"s3","tool_name":"Skill","tool_input":{"skill":"one","args":""}}');
   check('stop: every mode blocks at 1', stopCall('{"session_id":"s3","stop_hook_active":false}').includes('mode=every, needed=1'));
-  fs.writeFileSync(cfgPath, '{"mode":"manual"}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"manual","isolation":"inline"}', 'utf8');
   check('stop: manual mode never blocks', stopCall('{"session_id":"s3","stop_hook_active":false}') === '');
-  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":1}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":1,"isolation":"inline"}', 'utf8');
   check('stop: custom threshold honored', stopCall('{"session_id":"s3","stop_hook_active":false}').includes('needed=1'));
   fs.writeFileSync(cfgPath, 'broken{{', 'utf8');
   check('stop: corrupt config falls back threshold/5', stopCall('{"session_id":"s3","stop_hook_active":false}') === '');
-  fs.writeFileSync(cfgPath, '{"mode":"chaos","threshold":-3}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"chaos","threshold":-3,"isolation":"inline"}', 'utf8');
   check('stop: illegal config values fall back threshold/5', stopCall('{"session_id":"s3","stop_hook_active":false}') === '');
   // ---------- stop: context isolation ----------
   // inline: the protocol body is injected. subagent: a short delegation
@@ -493,15 +640,73 @@ try {
     iso.includes('Objective signals, counted by code') && iso.includes('light-loop.md') && iso.includes('run it inline instead'));
   check('stop: subagent mode still starts with the ephemeral marker and is byte-reproducible',
     iso.includes('"reason":"[lamarck: ephemeral') && stopCall('{"session_id":"s3","stop_hook_active":false}') === iso);
+  // background (default): the hook never blocks - it queues one evaluate job
+  // for the worker and the session output stays empty.
+  const jobsSb = path.join(sb, 'data', 'jobs.jsonl');
+  const jobsOf = () => (fs.existsSync(jobsSb) ? fs.readFileSync(jobsSb, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l)) : []);
+  fs.writeFileSync(cfgPath, '{"mode":"every"}', 'utf8');
+  let bg = stopCall('{"session_id":"s3","stop_hook_active":false}');
+  let bj = jobsOf();
+  check('stop: background is the default - no block, no injection, one evaluate job queued',
+    bg === '' && bj.length === 1 && bj[0].kind === 'evaluate' && bj[0].status === 'queued' && bj[0].session === 's3');
+  check('stop: the evaluate job carries entries, objective lines, cadence state and the harness',
+    !!bj[0] && Array.isArray(bj[0].entries) && bj[0].entries.length >= 1 && bj[0].entries[0].skill && bj[0].entries[0].ts &&
+    Array.isArray(bj[0].objective) && bj[0].objective.length === bj[0].entries.length && bj[0].objective[0].includes('->') &&
+    bj[0].cadence === 'weekly' && bj[0].window_open === true && typeof bj[0].backlog === 'number' && bj[0].harness === 'claude-code');
+  stopCall('{"session_id":"s3","stop_hook_active":false}');
+  check('stop: a session with a queued evaluate job is not queued twice', jobsOf().length === 1);
+  if (bj[0]) { bj[0].status = 'done'; fs.writeFileSync(jobsSb, JSON.stringify(bj[0]) + '\n', 'utf8'); }
+  stopCall('{"session_id":"s3","stop_hook_active":false}');
+  check('stop: once the job is done the next stop queues a new one', jobsOf().length === 2 && jobsOf()[1].status === 'queued');
+  check('stop: background stays silent below the trigger and in manual mode', (() => {
+    fs.writeFileSync(cfgPath, '{"mode":"threshold","threshold":50}', 'utf8');
+    const a = stopCall('{"session_id":"s3","stop_hook_active":false}');
+    fs.writeFileSync(cfgPath, '{"mode":"manual"}', 'utf8');
+    const b = stopCall('{"session_id":"s3","stop_hook_active":false}');
+    return a === '' && b === '' && jobsOf().length === 2;
+  })());
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"background","background":{"runner":"none"}}', 'utf8');
+  check('stop: background with runner none evaluates inline instead',
+    stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF') && jobsOf().length === 2);
+  fs.writeFileSync(cfgPath, '{"mode":"every"}', 'utf8');
+  check('stop: LAMARCK_RUNNER=none in the environment means inline too (same rule as the worker)',
+    stopCall('{"session_id":"s3","stop_hook_active":false}', { LAMARCK_RUNNER: 'none' }).includes('ESCALATE ONLY IF') && jobsOf().length === 2);
+  fs.writeFileSync(path.join(sb, 'data', '.jobs.lock'), '1', 'utf8');
+  const t0 = Date.now();
+  check('stop: a fresh queue mutex held by someone else is waited for at most 2 s, then the job is skipped and logged',
+    stopCall('{"session_id":"s3","stop_hook_active":false}') === '' && jobsOf().length === 2 && Date.now() - t0 >= 1900 &&
+    fs.readFileSync(errLog, 'utf8').includes('jobs mutex not acquired'));
+  const stale = new Date(Date.now() - 60000);
+  fs.utimesSync(path.join(sb, 'data', '.jobs.lock'), stale, stale);
+  check('stop: a stale queue mutex (older than 10 s) is removed and the job is queued',
+    stopCall('{"session_id":"s3","stop_hook_active":false}') === '' && jobsOf().length === 2 && !fs.existsSync(path.join(sb, 'data', '.jobs.lock')));
+  fs.writeFileSync(cfgPath, '{"mode":"every"}', 'utf8');
+  const noRunner = path.join(sb, 'data', '.no-runner');
+  fs.writeFileSync(noRunner, 'none', 'utf8');
+  bj = jobsOf(); bj.forEach(j => { j.status = 'done'; }); fs.writeFileSync(jobsSb, bj.map(j => JSON.stringify(j)).join('\n') + '\n', 'utf8');
+  check('stop: the worker\'s .no-runner flag makes background fall back to inline',
+    stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF') && jobsOf().length === 2);
+  const old = new Date(Date.now() - 2 * 86400000);
+  fs.utimesSync(noRunner, old, old);
+  check('stop: a .no-runner flag older than a day is ignored (a CLI installed later is found again)',
+    stopCall('{"session_id":"s3","stop_hook_active":false}') === '' && jobsOf().length === 3);
+  fs.unlinkSync(noRunner);
+  fs.writeFileSync(jobsSb, 'garbage {{\n', 'utf8');
+  const errLogBefore = fs.existsSync(errLog) ? fs.readFileSync(errLog, 'utf8') : '';
+  check('stop: a corrupt queue line is tolerated - the hook stays silent, still queues, logs nothing',
+    stopCall('{"session_id":"s3","stop_hook_active":false}') === '' && fs.readFileSync(jobsSb, 'utf8').split('\n').filter(l => l.trim()).length === 2 &&
+    (fs.existsSync(errLog) ? fs.readFileSync(errLog, 'utf8') : '') === errLogBefore);
+  fs.unlinkSync(jobsSb);
   fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"chaos"}', 'utf8');
-  check('stop: unknown isolation value falls back to inline',
-    stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
+  check('stop: unknown isolation value falls back to the default (background)',
+    stopCall('{"session_id":"s3","stop_hook_active":false}') === '' && jobsOf().length === 1);
+  fs.unlinkSync(jobsSb);
 
   // ---------- stop: cadence (updates batched, telemetry continuous) ----------
   // No data/cadence.json = never opened = window due. A fresh stamp closes
   // it for the cadence period; continuous ignores the stamp entirely.
   const cadFile = path.join(sb, 'data', 'cadence.json');
-  fs.writeFileSync(cfgPath, '{"mode":"every"}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"inline"}', 'utf8');
   let cad = stopCall('{"session_id":"s3","stop_hook_active":false}');
   check('stop: default cadence is weekly and a never-opened window is open (escalation allowed, stamping instructed)',
     cad.includes('ESCALATE ONLY IF') && cad.includes('cadence=weekly') && cad.includes('write data/cadence.json'));
@@ -514,13 +719,13 @@ try {
   check('stop: a stamp older than the period reopens the window',
     stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
   fs.writeFileSync(cadFile, JSON.stringify({ last: new Date().toISOString() }), 'utf8');
-  fs.writeFileSync(cfgPath, '{"mode":"every","cadence":"continuous"}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"inline","cadence":"continuous"}', 'utf8');
   check('stop: cadence continuous ignores the stamp',
     stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
-  fs.writeFileSync(cfgPath, '{"mode":"every","cadence":"daily"}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"inline","cadence":"daily"}', 'utf8');
   fs.writeFileSync(cadFile, JSON.stringify({ last: new Date(Date.now() - 2 * 86400000).toISOString() }), 'utf8');
   check('stop: cadence daily reopens after one day', stopCall('{"session_id":"s3","stop_hook_active":false}').includes('cadence=daily') && stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
-  fs.writeFileSync(cfgPath, '{"mode":"every","cadence":"hourly"}', 'utf8');
+  fs.writeFileSync(cfgPath, '{"mode":"every","isolation":"inline","cadence":"hourly"}', 'utf8');
   check('stop: unknown cadence falls back to weekly', stopCall('{"session_id":"s3","stop_hook_active":false}').includes('cadence=weekly'));
   fs.writeFileSync(cadFile, 'not json', 'utf8');
   check('stop: corrupt cadence.json is treated as never opened', stopCall('{"session_id":"s3","stop_hook_active":false}').includes('ESCALATE ONLY IF'));
@@ -566,8 +771,12 @@ try {
     ['every', 'manual', 'threshold'].includes(cj.mode) && ['observe', 'suggest', 'evolve'].includes(cj.evolution.default));
   check('static: config.example.json stability block sane', cj.stability.streak >= 1 && cj.stability.sample >= 1);
   const skillMdEarly = fs.readFileSync(path.join(repo, 'SKILL.md'), 'utf8');
-  check('static: config.example.json ships isolation=inline (the free default) and SKILL.md documents the switch',
-    cj.isolation === 'inline' && skillMdEarly.includes('`isolation`') && skillMdEarly.includes('ephemeral'));
+  check('static: config.example.json ships isolation=background (the session never sees the loop) and SKILL.md documents all three modes',
+    cj.isolation === 'background' && skillMdEarly.includes('`isolation`') && skillMdEarly.includes('ephemeral') &&
+    skillMdEarly.includes('`background`') && skillMdEarly.includes('`subagent`') && skillMdEarly.includes('`inline`') && skillMdEarly.includes('.no-runner'));
+  check('static: both READMEs document background isolation as the default with the inline fallback',
+    fs.readFileSync(path.join(repo, 'README.md'), 'utf8').includes('| `isolation` | `background` |') &&
+    fs.readFileSync(path.join(repo, 'README.zh-CN.md'), 'utf8').includes('| `isolation` | `background` |'));
   check('static: SKILL.md and both READMEs document the merge-not-overwrite upgrade (base copy, conflicts dir, integration job)',
     skillMdEarly.includes('`.upstream/`') && skillMdEarly.includes('data/upgrade-conflicts/') && skillMdEarly.includes('data/upgrade-notes/') &&
     fs.readFileSync(path.join(repo, 'README.md'), 'utf8').includes('three-way merges') &&

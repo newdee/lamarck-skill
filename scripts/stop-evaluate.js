@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // Stop hook. Cross-platform (Node 18+). If this session has pending
-// skill-invocation records past the configured trigger, block the stop once
-// and hand the model a self-contained LIGHT evaluation protocol, so the full
-// lamarck SKILL.md is NOT reloaded every turn. stop_hook_active guards
-// against infinite block loops (one block per turn max).
+// skill-invocation records past the configured trigger, either queue one
+// `evaluate` job for the background worker (isolation: background, the
+// default - the session is never blocked) or block the stop once and hand
+// the model a self-contained LIGHT evaluation protocol (inline/subagent),
+// so the full lamarck SKILL.md is NOT reloaded every turn. stop_hook_active
+// guards against infinite block loops (one block per turn max).
 // Must never fail the harness: all errors are swallowed, always exits 0.
 'use strict';
 const fs = require('fs');
@@ -42,8 +44,13 @@ try {
   // protocol and the evaluation's tool calls land there); 'subagent' hands
   // the whole evaluation to one delegated agent that reads the protocol
   // from disk and the evidence from the on-disk transcript, so the main
-  // context receives one line. Costs an extra model call; user's choice.
-  let isolation = 'inline';
+  // context receives one line; 'background' (default) does not block the
+  // turn at all - this hook writes one `evaluate` job and spawns the
+  // detached worker, which runs the same evaluation in a headless CLI
+  // (scripts/evolve-worker.js). The session sees nothing; results land in
+  // data/inbox.md. Falls back to inline when no headless runner exists
+  // (config background.runner = none, or the worker left data/.no-runner).
+  let isolation = 'background';
   // cadence: how often the ACTIVE side runs - escalation to proposals,
   // background jobs, backlog reminders. Telemetry and silent evaluation
   // stay continuous (evidence decays); only the updates are batched.
@@ -58,9 +65,19 @@ try {
       if (['every', 'manual', 'threshold'].includes(cfg.mode)) mode = cfg.mode;
       const t = Number(cfg.threshold);
       if (Number.isInteger(t) && t >= 1) threshold = t;
-      if (cfg.isolation === 'subagent') isolation = 'subagent';
+      if (['inline', 'subagent', 'background'].includes(cfg.isolation)) isolation = cfg.isolation;
+      if (cfg.background && cfg.background.runner === 'none' && isolation === 'background') isolation = 'inline';
+      if (process.env.LAMARCK_RUNNER === 'none' && isolation === 'background') isolation = 'inline';
       if (Object.prototype.hasOwnProperty.call(CADENCE_MS, cfg.cadence)) cadence = cfg.cadence;
     } catch { /* fall back to defaults */ }
+  }
+  // The worker leaves this flag when it found no headless CLI on PATH: the
+  // evaluation then runs in the session. The flag expires after a day so a
+  // CLI installed later is found again without any manual step.
+  if (isolation === 'background') {
+    try {
+      if (Date.now() - fs.statSync(path.join(root, 'data', '.no-runner')).mtimeMs < 86400000) isolation = 'inline';
+    } catch { /* no flag */ }
   }
   let lastWindow = -Infinity;
   try { lastWindow = Date.parse(JSON.parse(fs.readFileSync(path.join(root, 'data', 'cadence.json'), 'utf8')).last); } catch { /* never opened */ }
@@ -222,9 +239,62 @@ try {
     `Working directory: ${root} - every relative path below resolves against it. `;
   const objectiveSentence =
     `Objective signals, counted by code from the transcript (copy each verbatim into that ledger line's objective field; never estimate them): ${objectiveLines.join('; ')}. `;
+  const transcripts = [...new Set(mine.map(e => e.transcript).filter(Boolean))];
+  if (isolation === 'background') {
+    // Backstage: no block, no injection. One `evaluate` job per session
+    // carries everything the headless evaluator needs that only this hook
+    // can compute now (objective signals, cadence state); the evidence
+    // itself stays on disk (pending.jsonl + the transcript). A job already
+    // queued for this session is not duplicated - the evaluator reads
+    // pending.jsonl at run time, so later entries are covered by the next
+    // job. Spawning the worker is idempotent (lock file); every stop
+    // re-spawns it so a queue that stalled (crash, reboot) drains again.
+    const jobsPath = p('data', 'jobs.jsonl');
+    const job = {
+      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`, ts: new Date().toISOString().slice(0, 19) + 'Z',
+      kind: 'evaluate', session: sid, harness: mine[0].harness || 'claude-code',
+      entries: mine.map(e => ({ skill: e.skill, ts: e.ts, transcript: e.transcript || '' })),
+      objective: objectiveLines, cadence, window_open: windowOpen, next_window: nextWindowIso, backlog,
+      status: 'queued', seen: false
+    };
+    fs.mkdirSync(p('data'), { recursive: true });
+    // The queue mutex shared with the worker (data/.jobs.lock, wx-open,
+    // dead after 10 s): the dedup check and the append happen as one step,
+    // and the worker's rewrite can never drop this line. If the mutex
+    // cannot be had within 2 s the job is skipped - pending.jsonl keeps
+    // the evidence and the next stop tries again.
+    const lockPath = p('data', '.jobs.lock');
+    const sleepMs = (ms) => { try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); } catch { const t = Date.now() + ms; while (Date.now() < t) { /* spin */ } } };
+    let held = false;
+    const deadline = Date.now() + 2000;
+    while (!held && Date.now() <= deadline) {
+      try { fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' }); held = true; } catch (e) {
+        if (!e || e.code !== 'EEXIST') break;
+        try { if (Date.now() - fs.statSync(lockPath).mtimeMs > 10000) fs.unlinkSync(lockPath); } catch { /* gone */ }
+        sleepMs(25);
+      }
+    }
+    if (held) {
+      try {
+        let queued = false;
+        try {
+          for (const l of fs.readFileSync(jobsPath, 'utf8').split('\n')) {
+            if (!l.trim()) continue;
+            try { const j = JSON.parse(l); if (j && j.kind === 'evaluate' && j.status === 'queued' && j.session === sid) { queued = true; break; } } catch { /* tolerate */ }
+          }
+        } catch { /* no queue yet */ }
+        if (!queued) fs.appendFileSync(jobsPath, JSON.stringify(job) + '\n', 'utf8');
+      } finally { try { fs.unlinkSync(lockPath); } catch { /* gone */ } }
+    } else logErr(new Error('jobs mutex not acquired within 2 s - evaluate job skipped this turn'));
+    if (!process.env.LAMARCK_NO_SPAWN) {
+      const { spawn } = require('child_process');
+      const child = spawn(process.execPath, [p('scripts', 'evolve-worker.js'), 'run'], { detached: true, stdio: 'ignore', windowsHide: true });
+      child.unref();
+    }
+    process.exit(0);
+  }
   let reason;
   if (isolation === 'subagent') {
-    const transcripts = [...new Set(mine.map(e => e.transcript).filter(Boolean))];
     reason = MARK + header +
       `ISOLATION MODE: do NOT evaluate in this context and do NOT read the protocol here. Spawn ONE subagent with the brief below, verbatim, then append at most one line to your reply with what it returns. ` +
       `BRIEF: "You are the lamarck evaluator for session ${sid}. Working directory ${root}. Read protocol${path.sep}light-loop.md and execute it. Pending entries: ${mine.map(e => `${e.skill}@${e.ts}`).join(', ')}. ` +

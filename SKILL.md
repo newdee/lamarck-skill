@@ -1,10 +1,10 @@
 ---
 name: lamarck
-description: Lamarckian skill evolution - continuously monitors every real skill invocation, drives governed evolution of observed skills, and evolves itself by the same rules while running. Harness-agnostic (adapters for Claude Code, Codex, Cursor, pi share one ledger); in the reference adapter a PostToolUse hook logs each invocation (stamped with the skill's genome hash for per-version regression windows) and a Stop hook runs a light evaluation loop injected at turn end (this SKILL.md is not reloaded per turn). Per-skill dynamic rubrics (git-versioned) define what "good" means per skill; a trust ladder in config.json controls which skills may be edited (auto/evolve/suggest/observe, default observe). Read this file only when escalating (enough same-type evidence for an edit) or on manual invocation. Use when the stop hook says to escalate, or when asked to review skill performance, optimize or improve a skill, audit the skill ledger, distill skill learnings, manage the evolution whitelist, or switch trigger mode.
+description: Lamarckian skill evolution - monitors every real skill invocation, drives governed evolution of observed skills, and evolves itself by the same rules while running. Harness-agnostic (adapters for Claude Code, Codex, Cursor, pi share one ledger); in the reference adapter a PostToolUse hook logs each invocation (stamped with the skill's genome hash for per-version regression windows) and a Stop hook queues a light evaluation loop that runs backstage in a headless CLI (or inline), never reloading this file. Per-skill dynamic rubrics (git-versioned) define what "good" means per skill; a trust ladder in config.json controls which skills may be edited (auto/evolve/suggest/observe, default observe). Read this file only when escalating (enough same-type evidence for an edit) or on manual invocation. Use when the stop hook says to escalate, or when asked to review skill performance, optimize or improve a skill, audit the skill ledger, distill skill learnings, manage the evolution whitelist, or switch trigger mode.
 license: MIT
 metadata:
   author: kian
-  version: "5.20"
+  version: "5.21"
 compatibility: Node.js 18+ and git, cross-platform. Reference adapter wires PostToolUse/Stop hooks in ~/.claude/settings.json (Claude Code); adapters for Codex, Cursor and pi ship in adapters/ and share the same telemetry store.
 ---
 
@@ -22,10 +22,21 @@ lamarck 是生活——生产遥测驱动,用进 + 废退双向。三层机制,�
   对照该 skill rubric 中场景匹配的条目做四维评估落 `data/ledger.jsonl`、用户纠正
   n=1 结晶进 `data/rubrics/<skill>.md`、经验沉淀进 `data/learnings/<skill>.md`、
   蒸馏回归用例进 `data/replays/<skill>.jsonl`、清本会话 pending;他会话积压达阈值
-  时提示用户手动清算(指针会衰减,静默积压等于丢证据)。**上下文隔离**:
-  `config.json` 的 `isolation` 为 `subagent` 时,评估整体派一个子代理执行——
-  它从磁盘读协议、从实时落盘的 transcript 切片读证据,主上下文只收一行结果
-  (代价:多一次模型调用);默认 `inline` 零成本但协议进主上下文。所有注入
+  时提示用户手动清算(指针会衰减,静默积压等于丢证据)。**在哪跑**由
+  `config.json` 的 `isolation` 决定:`background`(默认)——Stop hook **不阻塞
+  回合、不注入任何文字**,只往 `data/jobs.jsonl` 写一条 `evaluate` job 并拉起
+  后台 worker,由本 harness 的无头 CLI 在会话外执行同一协议(证据来自磁盘上
+  的 transcript,客观信号由 hook 算好随 job 带走),结果写 `data/inbox.md`,
+  只有"需要用户"(出了提案 / 结晶了纠正 / 失败)才发系统通知;无头跑不能提
+  问,过门提案一律落 `suggestions/`,auto 级由它自己入队 evolve job。找不到
+  无头 CLI 时 worker 留 `data/.no-runner` 标记,hook 自动退回 `inline`,一天后
+  重试。**无头写入**:Claude Code 把 `~/.claude` 整个视为受保护路径,无头模式
+  下 Write/Edit 工具一律拒绝(allow 规则与 acceptEdits 都不解除),所以后台
+  agent 的全部写入走 `node scripts/store.js`(append / write / edit /
+  pending-drop)——它把围栏(只许 lamarck 目录与 skills 目录,禁 scripts/
+  adapters/ bin/ config.json .git)和有界编辑(≤3 处、每处 ≤10 行、原文唯一)
+  变成代码执法,比交给模型自觉更紧。`subagent`——评估派一个子代理在本会话内执行,主上下文只收一行;
+  `inline`——协议注入本回合上下文,零额外模型调用但协议进主上下文。所有注入
   文本带 ephemeral 标记,供 harness compaction 优先丢弃。
   **触发时机由 `config.json` 决定**:`{"mode":"every|manual|threshold","threshold":N}`——
   `every` 每个用过 skill 的回合末触发;`manual` 从不自动触发;`threshold`(默认,N=5)
@@ -217,7 +228,7 @@ better / tie → 保留,解除冻结。
   `data/` 下 pending 与 ledger 皆无 → 报**接线正常、数据未至**(hook 重启后
   才加载;验活:用任一 skill 看 pending.jsonl 是否长一行)——不是配置错误,
   不发接线指引。两关都过 → 先 `node scripts/evolve-worker.js status --ack`,把后台
-  进化的未读结果原样呈现;再处理全部 pending + 沉淀 learnings/rubric + 过优化门。本会话条目做
+  的未读结果原样呈现(安静的后台评估只报个数);再处理全部 pending + 沉淀 learnings/rubric + 过优化门。本会话条目做
   四维评估;**历史会话条目派独立 subagent 清算**(其证据在 transcript 文件里、
   不在本会话上下文,外置零证据损失;主上下文只收每条一行结论,防污染):
   subagent 先试 transcript 指针——记录的 `transcript` 路径若仍存在(30 天
@@ -263,8 +274,10 @@ git 版本化)· `data/replays/<skill>.jsonl`(真实调用蒸馏的回归用例,
 变更——新旧版本间的 CHANGELOG 条目;本地基因进化过时 installer 据此入队一个
 `upgrade` 后台 job,由本地 lamarck 做语义融合:审合并结果的一致性、把仍成立的
 本地意图经门重套、丢掉被上游覆盖的,结果写 inbox)·
-`data/jobs.jsonl`(后台进化队列:id/skill/proposal/auth/status/seen)·
-`data/inbox.md`(后台结果,每 job 一行,`status --ack` 标已读)·
+`data/jobs.jsonl`(后台队列:`evaluate` 轻循环 / `evolve` 施工 / `upgrade` 融合 /
+`ping`;字段 id/kind/status/seen 等)· `data/inbox.md`(后台结果,每 job 一行,
+`status --ack` 标已读;安静的 evaluate 结果预先标已读)· `data/.no-runner`
+(worker 找不到无头 CLI 时留下,hook 据此退回 inline,一天过期)·
 `data/hook-errors.log`(hook 意外错误诊断,一行一条;安静=健康)·
 `CHANGELOG.md`(编辑留痕)。`off` 文件:停用自动 hook(手动调用不受影响)。
 

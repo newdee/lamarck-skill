@@ -36,7 +36,7 @@ const src = path.resolve(__dirname, '..');
 const CORE = [
   'SKILL.md', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'LICENSE',
   'config.example.json', 'gitignore.template',
-  'scripts/posttool-skill.js', 'scripts/stop-evaluate.js', 'scripts/selftest.js', 'scripts/verify-adapter.js', 'scripts/report.js', 'scripts/evolve-worker.js',
+  'scripts/posttool-skill.js', 'scripts/stop-evaluate.js', 'scripts/selftest.js', 'scripts/verify-adapter.js', 'scripts/report.js', 'scripts/evolve-worker.js', 'scripts/store.js',
   'protocol/light-loop.md', 'protocol/adapter-contract.md',
   'adapters/claude-code/manifest.json',
   'adapters/codex/posttool.js', 'adapters/codex/stop.js', 'adapters/codex/hooks.json', 'adapters/codex/README.md', 'adapters/codex/manifest.json',
@@ -332,7 +332,9 @@ function install() {
       node ${path.join(target, 'scripts', 'report.js')} --since 30d
     (add --json to archive it as evidence)
  Defaults until you touch config.json: evaluation batches at 5
- calls, updates (proposals, background edits, reminders) batch into
+ calls and runs BACKSTAGE in a headless CLI (your session sees nothing;
+ no headless CLI on PATH = it runs inline), updates (proposals,
+ background edits, reminders) batch into
  one WEEKLY window, every skill is observe-only (evidence accumulates,
  nothing is ever edited). Whitelist per skill later: /lamarck evolve add
 ────────────────────────────────────────────────────────────────`);

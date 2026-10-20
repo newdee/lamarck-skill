@@ -59,7 +59,7 @@ for (const item of ['scripts', 'protocol', 'adapters']) {
   fs.cpSync(path.join(repo, item), path.join(sb, item), { recursive: true });
 }
 fs.mkdirSync(path.join(sb, 'data'), { recursive: true });
-fs.writeFileSync(path.join(sb, 'config.json'), '{"mode":"threshold","threshold":2}', 'utf8');
+fs.writeFileSync(path.join(sb, 'config.json'), '{"mode":"threshold","threshold":2,"isolation":"inline"}', 'utf8');
 const pending = path.join(sb, 'data', 'pending.jsonl');
 const offFile = path.join(sb, 'off');
 
